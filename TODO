@@ -1,0 +1,8 @@
+Immediate:
+ * Implement rest of opcodes (from astore).
+ * Implement support for basic classes.
+
+Major:
+ * Read all attributes (for fields, methods, class etc). [p101]
+ * Proper format checking and byte code verification. [p141]
+
