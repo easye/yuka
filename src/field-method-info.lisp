@@ -29,7 +29,7 @@
 	    (flags-to-string (field/method-info-access-flags self))
 	    (constant-pool-string-at constant-pool (field/method-info-descriptor-index self))
 	    (constant-pool-string-at constant-pool (field/method-info-name-index self))
-	    (attribute-infos-to-string (field/method-info-attributes self)))))
+	    (attribute-infos-to-string (field/method-info-attributes self) constant-pool))))
   
 (defun field/method-infos-to-string (self constant-pool)
   (with-output-to-string (s)

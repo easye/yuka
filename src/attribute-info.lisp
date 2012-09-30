@@ -10,22 +10,46 @@
   (exception-table nil :type simple-array)
   (attributes nil :type simple-array))
 
+(defstruct et-entry
+  (from 0 :type integer)
+  (to 0 :type integer)
+  (target 0 :type integer)
+  (type 0 :type integer))
+
 (defun read-code (stream len)
   (if (or (= len 0) (>= len +max-code-len+))
       (error "Invalid code length: ~a." len))
   (read-array stream len #'read-byte))
 
-(defun code-attribute-to-string (self)
+(defun exception-table-to-string (self constant-pool)
+  (with-output-to-string (s)
+    (format s "     from    to    target    type~%")
+    (map nil #'(lambda (e)
+                 (format s "     ~5a    ~5a    ~5a    ~20@a~%"
+                         (et-entry-from e)
+                         (et-entry-to e)
+                         (et-entry-target e)
+                         (constant-pool-string-at constant-pool (et-entry-type e))))
+         self)))
+
+(defun code-attribute-to-string (self constant-pool)
   (with-output-to-string (s)
     (format s "  Code:~%    stack= ~a, locals= ~a~%"
 	    (code-attribute-max-stack self) (code-attribute-max-locals self))
     (format s "~a~%" (opcode-to-string (code-attribute-code self)))
-    (format s "    LineNumberTable:~%")
-    (format s "~a~%" (attribute-infos-to-string (code-attribute-attributes self)))))
+    (when (> (length (code-attribute-exception-table self)) 0)
+      (format s "    ExceptionTable:~%~a~%" 
+              (exception-table-to-string 
+               (code-attribute-exception-table self) constant-pool)))
+    (format s "~%    LineNumberTable:~%")
+    (format s "~a~%" (attribute-infos-to-string (code-attribute-attributes self) 
+                                                constant-pool))))
 
 (defun read-et-entry (stream)
-  (list (cons (read-u2 stream) (read-u2 stream))
-	(cons (read-u2 stream) (read-u2 stream))))
+  (make-et-entry :from (read-u2 stream)
+                 :to (read-u2 stream)
+                 :target (read-u2 stream)
+                 :type (read-u2 stream)))
 
 (defmacro read-exception-table (stream count)
   `(read-array ,stream ,count #'read-et-entry))
@@ -75,18 +99,18 @@
 (defun attribute-info-length (self)
   (length (attribute-info-info self)))
   
-(defun attribute-info-to-string (self)
+(defun attribute-info-to-string (self constant-pool)
   (let ((info (attribute-info-info self)))
     (case (attribute-info-tag self)
       ((:code)
-       (code-attribute-to-string info))
+       (code-attribute-to-string info constant-pool))
       ((:line-number-table)
        (line-number-table-to-string info))
       (t 
        info))))
 
-(defun attribute-infos-to-string (self)
+(defun attribute-infos-to-string (self constant-pool)
   (with-output-to-string (s)
     (map 'nil #'(lambda (ainfo)
-		  (format s "~a" (attribute-info-to-string ainfo)))
+		  (format s "~a" (attribute-info-to-string ainfo constant-pool)))
 	 self)))

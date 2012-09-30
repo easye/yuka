@@ -1,5 +1,5 @@
 Immediate:
- * Implement rest of opcodes (from astore).
+ * Implement rest of opcodes (from athrow).
  * Implement support for basic classes.
 
 Major:

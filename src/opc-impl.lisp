@@ -12,12 +12,16 @@
      (throw-exception 'ArrayIndexOutOfBoundsException)))
 
 (defmacro check-array-type (array value)
-  `(format t "(check-array-type ~a ~a) not implemented!"
+  `(format t "(check-array-type ~a ~a) not implemented!~%"
            ,array ,value))  
 
 (defmacro check-for-neg-array-size (size)
   `(when (< ,size 0)
      (throw-exception 'NegativeArraySizeException)))
+
+(defmacro check-ref-type (obj types)
+  `(format t "(check-ref-type ~a ~a) not implemented!~%" 
+           ,obj ,types))
 
 (defmacro istore (locals operand-stack index)
   `(setf (aref ,locals ,index) (stack-pop ,operand-stack)))
@@ -55,4 +59,7 @@
     (check-not-null array)
     (stack-push operand-stack (length (typed-array-elements array)))))
 
-        
+(defun astore (locals operand-stack index)
+  (let ((ref (stack-pop operand-stack)))
+    (check-ref-type ref '(return-address reference))
+    (setf (aref locals index) ref)))
