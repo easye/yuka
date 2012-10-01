@@ -1,5 +1,6 @@
 Immediate:
- * Implement rest of opcodes (from athrow).
+ * Test athrow implementation.       
+ * Implement rest of opcodes (from baload).
  * Implement support for basic classes.
 
 Major:

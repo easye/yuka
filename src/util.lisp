@@ -84,6 +84,9 @@
     (setf (bounded-stack-index self) index)
     (aref elements index)))
 
+(defmacro stack-reset (self)
+  `(setf (bounded-stack-index ,self) 0))
+
 (defmacro make-typed-array (count type-name)
   `(cons (make-array ,count) ,type-name))
 

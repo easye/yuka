@@ -23,6 +23,10 @@
   `(format t "(check-ref-type ~a ~a) not implemented!~%" 
            ,obj ,types))
 
+(defmacro check-subclass-of (objref super-classes)
+  `(format t "(check-subclass-of ~a ~a) not implemented!~%"
+           ,objref ,super-classes))
+
 (defmacro istore (locals operand-stack index)
   `(setf (aref ,locals ,index) (stack-pop ,operand-stack)))
 
@@ -63,3 +67,14 @@
   (let ((ref (stack-pop operand-stack)))
     (check-ref-type ref '(return-address reference))
     (setf (aref locals index) ref)))
+
+(defun athrow (operand-stack exception-table constant-pool)
+  (let ((ref (stack-pop operand-stack)))
+    (check-ref-type ref '(reference))
+    (check-subclass-of ref '(Throwable))
+    (let ((h (exception-table-find-handler exception-table (klass-name ref) constant-pool)))
+      (cond ((null h)
+             (stack-reset operand-stack)
+             (stack-push operand-stack ref)
+             -1)
+            (t (et-entry-target h))))))

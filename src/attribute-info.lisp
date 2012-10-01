@@ -32,6 +32,16 @@
                          (constant-pool-string-at constant-pool (et-entry-type e))))
          self)))
 
+(defun exception-table-find-handler (self ex-klass-name constant-pool)
+  (let ((res nil))
+    (loop for i from 0 to (1- (length self)) 
+       do (let ((et (aref self i)))
+            (when (string= (constant-pool-string-at constant-pool (et-entry-type et))
+                           ex-klass-name)
+              (setf res et)
+              (return))))
+    res))
+
 (defun code-attribute-to-string (self constant-pool)
   (with-output-to-string (s)
     (format s "  Code:~%    stack= ~a, locals= ~a~%"
