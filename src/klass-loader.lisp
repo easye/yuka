@@ -39,3 +39,6 @@
     (let ((klass (klass-from-stream stream)))
       (verify-end-of-klass-stream stream)
       klass)))
+
+(defmacro find-klass (klass-name)
+  `(format t "(find-klass ~a) not implemented!~%" ,klass-name))

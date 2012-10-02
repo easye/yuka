@@ -84,6 +84,12 @@
     (setf (bounded-stack-index self) index)
     (aref elements index)))
 
+(defun stack-top (self)
+  (let ((e (stack-pop self))
+        (i (bounded-stack-index self)))
+    (setf (bounded-stack-index self) (1+ i))
+    e))
+
 (defmacro stack-reset (self)
   `(setf (bounded-stack-index ,self) 0))
 

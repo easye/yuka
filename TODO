@@ -1,7 +1,7 @@
 Immediate:
- * Test athrow implementation.       
- * Implement rest of opcodes (from baload).
+ * Implement rest of opcodes (from d2l).
  * Implement support for basic classes.
+ * Test all opcode implementations.
 
 Major:
  * Read all attributes (for fields, methods, class etc). [p101]

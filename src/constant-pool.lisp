@@ -51,7 +51,7 @@
 (defmacro float-info-bytes (self)
   `(cdr ,self))
 
-(defun float-value (bits)
+(defun bits-to-float-value (bits)
   (let ((s (if (= 0 (ash bits -31)) 1 -1))
 	(e (logand (ash bits -23) #xff))
 	(m 0))
@@ -70,7 +70,7 @@
 	       (and (>= bits #xff800001) (<= bits #xffffffff)))
 	   'NaN)
 	  (t 
-	   (float-value bits)))))
+	   (bits-to-float-value bits)))))
 
 (defun read-long-info (stream tag)
   (cons tag (cons (read-u4 stream) (read-u4 stream))))
@@ -99,7 +99,7 @@
 (defmacro double-info-low-bytes (self)
   `(cddr ,self))
 
-(defun double-value (bits)
+(defun bits-to-double-value (bits)
   (let ((s (if (= (ash bits -63) 0) 1 -1))
 	(e (logand (ash bits -52) #x7ff))
 	(m 0))
@@ -119,7 +119,7 @@
 	       (and (>= bits #xfff0000000000001) (<= bits #xffffffffffffffff)))
 	   'NaN)
 	  (t 
-	   (double-value bits)))))
+	   (bits-to-double-value bits)))))
 
 (defun read-name-and-type-info (stream tag)
   (cons tag (cons (read-u2 stream) (read-u2 stream))))

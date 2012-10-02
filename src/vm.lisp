@@ -15,6 +15,7 @@
 
 ;; Required by the virtual machine.
 (load "opc-impl.lisp")
+(load "numeric.lisp")
 (load "frame.lisp")
 
 (defun execute-method (method klass)
