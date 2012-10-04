@@ -1,5 +1,6 @@
 Immediate:
- * Implement rest of opcodes (from d2l).
+ * Correct the implementation of dup opcodes based on type categories.
+ * Implement rest of opcodes (from f2d).
  * Implement support for basic classes.
  * Test all opcode implementations.
 

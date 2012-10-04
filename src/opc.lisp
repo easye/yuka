@@ -1,3 +1,20 @@
+;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;; This file is part of yuka.
+
+;; yuka is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; yuka is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (in-package :yuka)
 
 (defparameter *opcode-symbols* (make-array 255))
@@ -33,7 +50,7 @@
   (setf (aref *opcode-symbols* 49) 'daload)
   (setf (aref *opcode-symbols* 82) 'dastore)
   (setf (aref *opcode-symbols* 152) 'dcmpg)
-  (setf (aref *opcode-symbols* 151) 'dcmpi)
+  (setf (aref *opcode-symbols* 151) 'dcmpl)
   (setf (aref *opcode-symbols* 14) 'dconst_0)
   (setf (aref *opcode-symbols* 15) 'dconst_1)
   (setf (aref *opcode-symbols* 111) 'ddiv)
@@ -316,7 +333,6 @@
        do (let ((i-opc (next-opcode bytes-array i)))
 	    (setf res (cons (cons i (cdr i-opc)) res))
 	    (setf i (car i-opc))))
-    (print (reverse res))
     (coerce (reverse res) 'simple-vector)))  
 
 (defun opcode-to-string (self)

@@ -1,3 +1,21 @@
+;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;; This file is part of yuka.
+
+;; yuka is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; yuka is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 (in-package :yuka)
 
 (defstruct frame
@@ -5,14 +23,14 @@
   (klass nil)
   (locals nil :type simple-array)
   (operand-stack nil)
-  (has-unhandled-exception nil))
+  (has-unhandled-exception nil)
+  (return-value nil))
 
 (defun make-frame-from-code (code klass)
   (make-frame :code code
               :klass klass
 	      :locals (make-array (code-attribute-max-locals code))
-	      :operand-stack (make-stack (code-attribute-max-stack code))
-              :has-unhandled-exception nil))
+	      :operand-stack (make-stack (code-attribute-max-stack code))))
 
 (defun monitor-exit ()
   (format t "(monitor-exit) not implemented!~%"))
@@ -86,14 +104,68 @@
             (d2f operand-stack))
            ((d2i)
             (d2i operand-stack))
-           ((istore_0)
-            (istore locals operand-stack 0))
-           ((istore_1)
-            (istore locals operand-stack 1))
-           ((istore_2)
-            (istore locals operand-stack 2))
-           ((istore_3)
-            (istore locals operand-stack 3))
+	   ((d2l)
+	    (d2l operand-stack))
+	   ((dadd)
+	    (dadd operand-stack))
+	   ((daload)
+	    (daload operand-stack))
+	   ((dastore)
+	    (dastore operand-stack))
+	   ((dcmpg)
+	    (dcmp operand-stack nil))
+	   ((dcmpl)
+	    (dcmp operand-stack t))
+	   ((dconst_0)
+	    (stack-push operand-stack *dbl-0*))
+	   ((dconst_1)
+	    (stack-push operand-stack *dbl-1*))
+	   ((ddiv)
+	    (ddiv operand-stack))
+	   ((dload)
+	    (loadv locals operand-stack (opcode-operands opc)))
+	   ((dload_0)
+	    (loadv locals operand-stack 0))
+	   ((dload_1)
+	    (loadv locals operand-stack 1))
+	   ((dload_2)
+	    (loadv locals operand-stack 2))
+	   ((dload_3)
+	    (loadv locals operand-stack 3))
+	   ((dmul)
+	    (dmul operand-stack))
+	   ((dneg)
+	    (dneg operand-stack))
+	   ((drem)
+	    (drem operand-stack))
+	   ((dreturn)
+	    (monitor-exit)
+	    (setf (frame-return-value self) (stack-pop operand-stack))
+	    (setf return-from-frame t))
+	   ((dstore istore)
+	    (storev locals operand-stack (opcode-operands opc)))
+           ((dstore_0 istore_0)
+            (storev locals operand-stack 0))
+           ((dstore_1 istore_1)
+            (storev locals operand-stack 1))
+           ((dstore_2 istore_2)
+            (storev locals operand-stack 2))
+           ((dstore_3 istore_3)
+            (storev locals operand-stack 3))
+	   ((dsub)
+	    (dsub operand-stack))
+	   ((dup)
+	    (stack-dup operand-stack))
+	   ((dup_x1)
+	    (stack-dup-x1 operand-stack))
+	   ((dup_x2)
+	    (stack-dup-x2 operand-stack))
+	   ((dup2)
+	    (stack-dup2 operand-stack))
+	   ((dup2_x1)
+	    (stack-dup2-x1 operand-stack))
+	   ((dup2_x2)
+	    (stack-dup2-x2 operand-stack))
            ((return)
             (monitor-exit)
             (setf return-from-frame t)))

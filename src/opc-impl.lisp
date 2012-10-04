@@ -1,3 +1,20 @@
+;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;; This file is part of yuka.
+
+;; yuka is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; yuka is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (in-package :yuka)
 
 (defmacro throw-exception (exception)
@@ -39,7 +56,7 @@
   `(check-bounds ,array ,index)
   `(check-array-type ,array ,types))
 
-(defmacro istore (locals operand-stack index)
+(defmacro storev (locals operand-stack index)
   `(setf (aref ,locals ,index) (stack-pop ,operand-stack)))
 
 (defun aaload (operand-stack)
@@ -130,3 +147,57 @@
 (defmacro d2i (operand-stack)
   `(stack-push ,operand-stack
                (double-to-int (stack-pop ,operand-stack))))
+
+(defmacro d2l (operand-stack)
+  `(stack-push ,operand-stack
+	       (double-to-long (stack-pop ,operand-stack))))
+
+(defmacro dadd (operand-stack)
+  `(stack-push ,operand-stack
+	       (double-add (stack-pop ,operand-stack)
+			   (stack-pop ,operand-stack))))
+
+(defmacro daload (operand-stack)
+  `(array-load ,operand-stack '(double)))
+
+(defmacro dastore (operand-stack)
+  `(array-store ,operand-stack '(double)))
+
+(defmacro dcmp (operand-stack is-l)
+  `(stack-push ,operand-stack 
+	       (double-compare (stack-pop ,operand-stack)
+			       (stack-pop ,operand-stack)
+			       ,is-l)))
+
+(defmacro darith (operand-stack b a fn)
+  `(stack-push ,operand-stack (funcall ,fn ,a ,b)))
+
+(defmacro ddiv (operand-stack)
+  `(darith ,operand-stack
+	   (stack-pop ,operand-stack)
+	   (stack-pop ,operand-stack)
+	   #'double-div))
+
+(defmacro loadv (locals operand-stack index)
+  `(stack-push ,operand-stack (aref ,locals ,index)))
+
+(defmacro dmul (operand-stack)
+  `(darith ,operand-stack
+	   (stack-pop ,operand-stack)
+	   (stack-pop ,operand-stack)
+	   #'double-mul))
+
+(defmacro dneg (operand-stack)
+  `(stack-push ,operand-stack (double-neg (stack-pop ,operand-stack))))
+
+(defmacro drem (operand-stack)
+  `(darith ,operand-stack
+	   (stack-pop ,operand-stack)
+	   (stack-pop ,operand-stack)
+	   #'double-rem))
+
+(defmacro dsub (operand-stack)
+  `(darith ,operand-stack
+	   (stack-pop ,operand-stack)
+	   (stack-pop ,operand-stack)
+	   #'double-sub))

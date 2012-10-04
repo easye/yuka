@@ -1,4 +1,25 @@
+;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;; This file is part of yuka.
+
+;; yuka is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; yuka is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (in-package :yuka)
+
+(defvar *nan* 'NaN)
+(defvar *p-inf* 'Infinity)
+(defvar *n-inf* '-Infinity)
 
 (defmacro cp-info-tag (self)
   `(car ,self))
@@ -63,14 +84,13 @@
 (defun float-info-value (self)
   (let ((bits (float-info-bytes self)))
     (cond ((= bits #x7f800000) 
-	   'Infinity)
+	   *p-inf*)
 	  ((= bits #xff800000)
-	   '-Infinity)
+	   *n-inf*)
 	  ((or (and (>= bits #x7f800001) (<= bits #x7fffffff))
 	       (and (>= bits #xff800001) (<= bits #xffffffff)))
-	   'NaN)
-	  (t 
-	   (bits-to-float-value bits)))))
+	   *nan*)
+	  (t (bits-to-float-value bits)))))
 
 (defun read-long-info (stream tag)
   (cons tag (cons (read-u4 stream) (read-u4 stream))))
@@ -105,21 +125,20 @@
 	(m 0))
     (if (= e 0)
 	(setf m (ash (logand bits #xfffffffffffff) 1))
-	(setf m (logior (logand bits #xfffffffffffff))))
-    (* s m (expt 2 (- e 1075)))))
+	(setf m (logior (logand bits #xfffffffffffff) #x10000000000000)))
+    (coerce (* s m (expt 2 (- e 1075))) 'double-float)))
 
 (defun double-info-value (self)
   (let ((bits (long-info-value (double-info-high-bytes self)
 			       (double-info-low-bytes self))))
     (cond ((= bits #x7ff0000000000000)
-	   'Infinity)
+	   *p-inf*)
 	  ((= bits #xfff0000000000000)
-	   '-Infinity)
+	   *n-inf*)
 	  ((or (and (>= bits #x7ff0000000000001) (<= bits #x7fffffffffffffff))
 	       (and (>= bits #xfff0000000000001) (<= bits #xffffffffffffffff)))
-	   'NaN)
-	  (t 
-	   (bits-to-double-value bits)))))
+	   *nan*)
+	  (t (bits-to-double-value bits)))))
 
 (defun read-name-and-type-info (stream tag)
   (cons tag (cons (read-u2 stream) (read-u2 stream))))
@@ -209,20 +228,20 @@
 
 (defun integer-info-to-string (self)
   (with-output-to-string (s)
-    (format s "~20a#~a" "Integer" (integer-info-bytes self))))
+    (format s "~20a~a" "Integer" (integer-info-bytes self))))
 
 (defun float-info-to-string (self)
   (with-output-to-string (s)
-    (format s "~20a#~ff" "Float" (float-info-value self))))
+    (format s "~20a~ff" "Float" (float-info-value self))))
 
 (defun long-info-to-string (self)
   (with-output-to-string (s)
-    (format s "~20a#~a" "Long" (long-info-value (long-info-high-bytes self)
+    (format s "~20a~a" "Long" (long-info-value (long-info-high-bytes self)
 						(long-info-low-bytes self)))))
 
 (defun double-info-to-string (self)
   (with-output-to-string (s)
-    (format s "~20a#~a" "Double" (double-info-value self))))  
+    (format s "~20a~a" "Double" (double-info-value self))))  
 
 (defun name-and-type-info-to-string (self)
   (with-output-to-string (s)
@@ -291,7 +310,11 @@
       (let ((cp (make-array count)))
         (loop for i from 0 to (1- count)
 	   do (let ((tag (read-byte stream)))
-		(setf (aref cp i) (read-cp-info stream tag))))
+		(setf (aref cp i) (read-cp-info stream tag))
+		;(format t "~a~%" (cp-info-to-string (aref cp i)))
+		(when (or (eq tag +long-info+)
+			  (eq tag +double-info+))
+		  (setf i (1+ i)))))
         cp)
       (make-array 0)))
 
@@ -300,9 +323,11 @@
 
 (defun constant-pool-to-string (self)
   (with-output-to-string (s)
-    (loop for i from 0 to (1- (length self))
-       do (format s "    #~2a = ~a~%" (1+ i) 
-		  (cp-info-to-string (aref self i))))))
+    (loop for i from 0 to (1- (length self))	 
+       do (let ((cp-info (aref self i)))
+	    (when (not (null cp-info))
+	      (format s "    #~2a = ~a~%" (1+ i) 
+		      (cp-info-to-string cp-info)))))))
 
 (defun constant-pool-string-at (self index)
   (let* ((cp-info (aref self (1- index)))
@@ -316,5 +341,4 @@
        (constant-pool-string-at self (xxxref-info-name-type-index cp-info)))
       ((= +name-and-type-info+ tag)
        (constant-pool-string-at self (name-and-type-info-name-index cp-info)))
-      (t
-       (error "(constant-pool-string-at ~a ~a) failed for for ~a." self index tag)))))
+      (t (error "(constant-pool-string-at ~a ~a) failed for for ~a." self index tag)))))

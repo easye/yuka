@@ -1,5 +1,8 @@
 public class SimpleMath {
     public static void main(String args[]) {
-	int a = 3 + 4;
+	double a = 1000.4344;
+	double b = 54.43;
+	double d = a % b;
+	System.out.println(d);
     }
 }

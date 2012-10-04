@@ -1,3 +1,20 @@
+;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;; This file is part of yuka.
+
+;; yuka is free software; you can redistribute it and/or modify it under
+;; the terms of the GNU Lesser General Public License as published by
+;; the Free Software Foundation; either version 3 of the License, or
+;; (at your option) any later version.
+
+;; yuka is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (in-package :yuka)
 
 (defconstant +magic+ #xCAFEBABE)
@@ -58,40 +75,6 @@
 	  (t (let ((v (aref (iterator-sequence self) i)))
 	       (setf (array-state-index state) (1+ i))
 	       v)))))
-
-(defstruct bounded-stack
-  (elements nil :type simple-array)
-  (index 0 :type integer))
-
-(defmacro make-stack (max-depth)
-  `(make-bounded-stack :elements (make-array ,max-depth)))
-
-(defun stack-push (self e)
-  (let ((elements (bounded-stack-elements self))
-	(index (bounded-stack-index self)))
-    (when (>= index (length elements))
-      (error "stack overflow."))
-    (when (< index 0)
-      (setf index 0))
-    (setf (aref elements index) e)
-    (setf (bounded-stack-index self) (1+ index))))
-
-(defun stack-pop (self)
-  (let ((elements (bounded-stack-elements self))
-	(index (1- (bounded-stack-index self))))
-    (when (< index 0)
-      (error "stack underflow."))
-    (setf (bounded-stack-index self) index)
-    (aref elements index)))
-
-(defun stack-top (self)
-  (let ((e (stack-pop self))
-        (i (bounded-stack-index self)))
-    (setf (bounded-stack-index self) (1+ i))
-    e))
-
-(defmacro stack-reset (self)
-  `(setf (bounded-stack-index ,self) 0))
 
 (defmacro make-typed-array (count type-name)
   `(cons (make-array ,count) ,type-name))
