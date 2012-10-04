@@ -41,13 +41,6 @@
 (defmacro float-info-to-float (finfo)
   `(make-float (float-info-value ,finfo)))
 
-(defun make-double (v)
-  (cond ((> v +max-double+)
-	 (make-pinf-double))
-	((< v +min-double+)
-	 (make-ninf-double))
-	(t (cons 'double v))))
-
 (defmacro make-nan-double ()
   `(cons 'double *nan*))
 
@@ -61,6 +54,13 @@
 
 (defmacro make-nzero-double ()
   `(cons 'double *n-zero*))
+
+(defun make-double (v)
+  (cond ((> v +max-double+)
+	 (make-pinf-double))
+	((< v +min-double+)
+	 (make-ninf-double))
+	(t (cons 'double v))))
 
 (defmacro make-inf-double-from (inf)
   `(if (+infp ,inf)
