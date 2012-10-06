@@ -226,14 +226,23 @@
 (init-opcode-symbols-table)
 
 (defmacro index-from-bytes (code offset)
-  `(logior (ash (aref ,code (1+ ,offset)) 8)
-	   (aref ,code (+ 2 ,offset))))
+  `(progn
+     (logior (ash (aref ,code (1+ ,offset)) 8)
+	     (aref ,code (+ 2 ,offset)))))
 
 (defmacro wide-index-from-bytes (code offset)
   `(logior (ash (aref ,code (1+ ,offset)) 24)
 	   (ash (aref ,code (+ 2 ,offset)) 16)
 	   (ash (aref ,code (+ 3 ,offset)) 8)
 	   (aref ,code (+ 4 ,offset))))
+
+(defun byte-index-from-bytes (code offset)
+  (let ((a (aref code (1+ offset)))
+        (b (aref code (+ 2 offset))))
+    (let ((x (mod (logior (ash a 8) b) 256))) 
+      (+ offset (if (> x 127) 
+                    (- x 256) 
+                    x)))))
 
 (defun skip-padding (offset)
   ;; Skip padding to an address that is a multiple of 4.
@@ -278,13 +287,15 @@
 (defun next-opcode (code offset)
   (let ((opc (aref *opcode-symbols* (aref code offset))))
     (case opc
-      ((invokespecial anewarray checkcast getfield getstatic goto
+      ((invokespecial anewarray checkcast getfield getstatic
 		      if_acmpne if_acmpeq if_icmpeq if_icmpne
 		      if_icmplt if_icmpge if_icmpgt if_icmple
 		      ifeq ifne iflt ifge ifgt ifle ifnonnull
 		      ifnull instanceof invokestatic invokevirtual
 		      jsr ldc_w ldc2_w new putfield putstatic sipush)
        (cons (+ offset 2) (cons opc (index-from-bytes code offset))))
+      ((goto)
+       (cons (+ offset 2) (cons opc (byte-index-from-bytes code offset))))
       ((aload astore bipush dload dstore fload fstore iload istore ldc
 	      lload lstore newarray ret)
        (cons (1+ offset) (cons opc (aref code (1+ offset)))))

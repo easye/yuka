@@ -49,14 +49,14 @@
     (setf (bounded-stack-index self) (1+ i))
     e))
 
+(defmacro stack-length (self)
+  `(bounded-stack-index ,self))
+
 (defun stack-at (self index)
   (let ((len (stack-length self)))
     (when (or (>= index len) (< index 0))
       (error "invalid stack index."))
     (aref (bounded-stack-elements self) (- (1- len) index))))
-
-(defmacro stack-length (self)
-  `(bounded-stack-index ,self))
 
 (defmacro stack-reset (self)
   `(setf (bounded-stack-index ,self) 0))
@@ -76,12 +76,13 @@
     (stack-push (stack-push (stack-push (stack-push self v1) v3) v2) v1)))
 
 (defun stack-dup-x2 (self)
-  (if (>= (stack-length self) 3)
+  (if (and (is-category-1 (stack-at self 0))
+	   (is-category-1 (stack-at self 1)))
       (stack-dup-x3 self)
       (stack-dup-x1 self)))
 
 (defun stack-dup2 (self)
-  (if (= (stack-length self) 1)
+  (if (is-category-2 (stack-at self 0))
       (stack-dup self)
       (let ((v1 (stack-at self 0))
 	    (v2 (stack-at self 1)))
@@ -93,13 +94,41 @@
     (stack-push (stack-push (stack-push self v1) v2) v1)))
 
 (defun stack-dup2-x1 (self)
-  (if (= (stack-length self) 2)
+  (if (is-category-2 (stack-at self 0))
       (stack-dup2-x1-form2 self)
       (let ((v1 (stack-pop self))
 	    (v2 (stack-pop self))
 	    (v3 (stack-pop self)))
 	(stack-push (stack-push (stack-push (stack-push (stack-push self v2) v1) v3) v2) v1))))
 
+(defun stack-dup2-x2-form1 (self)
+  (let ((v1 (stack-pop self))
+	(v2 (stack-pop self))
+	(v3 (stack-pop self))
+	(v4 (stack-pop self)))
+    (stack-push (stack-push (stack-push
+			     (stack-push (stack-push (stack-push self v2) v1) v4)
+			     v3) v2) v1)))
+
+(defun stack-dup2-x2-form2 (self)
+  (let ((v1 (stack-pop self))
+	(v2 (stack-pop self))
+	(v3 (stack-pop self)))
+    (stack-push (stack-push (stack-push (stack-push self v1) v3) v2) v1)))
+
+(defun stack-dup2-x2-form3 (self)
+  (let ((v1 (stack-pop self))
+	(v2 (stack-pop self))
+	(v3 (stack-pop self)))
+    (stack-push (stack-push (stack-push (stack-push (stack-push self v2) v1) v3) v2) v1)))
+	
 (defun stack-dup2-x2 (self)
-  ;; TODO: implement
-  )
+  (cond ((is-category-2 (stack-at self 0))
+	 (if (is-category-1 (stack-at self 1))
+	     (stack-dup2-x2-form2 self)
+	     (stack-dup2-x1-form2 self)))
+	((and (is-category-1 (stack-at self 0))
+	      (is-category-1 (stack-at self 1)))
+	 (if (is-category-1 (stack-at self 2))
+	     (stack-dup2-x2-form1 self)
+	     (stack-dup2-x2-form3 self)))))

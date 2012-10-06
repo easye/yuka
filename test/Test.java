@@ -1,28 +1,11 @@
 public class Test implements java.io.Serializable {
 
-    public Test(int a, String b) {
-	this.a = a;
-	this.b = b;
-    }
-
-    public Test(Test that) {
-	this.a = that.a;
-	this.b = that.b;
-    }
-
-    public int getA() {
-	return a;
-    }
-
-    public String getB() {
-	return b;
-    }
-
-    private int a;
-    private String b;
-
     public static void main(String args[]) {
-	Test t = new Test(100, "hello, world");
-	System.out.println(t.getA() + ", " + t.getB());
+	double a = 34.4545;
+	long b = 32232323232323232L;
+	int i = 90;
+	byte y = 10;
+	for (int j = 0; j < 10; ++j)
+	    j += 100;
     }
 }

@@ -31,9 +31,10 @@
 (load "klass-loader.lisp")
 
 ;; Required by the virtual machine.
+(load "vm-util.lisp")
+(load "numeric.lisp")
 (load "bounded-stack.lisp")
 (load "opc-impl.lisp")
-(load "numeric.lisp")
 (load "frame.lisp")
 
 (defun execute-method (method klass)
@@ -49,4 +50,3 @@
 
 (defun run-main (klass)
   (run-method klass "main"))
-	

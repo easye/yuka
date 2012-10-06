@@ -51,10 +51,9 @@
 (defmacro can-cast (src target)
   `(format t "(can-cast ~a ~a) not implemented!~%" ,src ,target))
 
-(defmacro check-array (array index types)
+(defmacro check-array (array index)
   `(check-not-null ,array)
-  `(check-bounds ,array ,index)
-  `(check-array-type ,array ,types))
+  `(check-bounds ,array ,index))
 
 (defmacro storev (locals operand-stack index)
   `(setf (aref ,locals ,index) (stack-pop ,operand-stack)))
@@ -63,7 +62,7 @@
   (let* ((a (stack-pop operand-stack))
          (array (typed-array-elements a))
          (index (stack-pop operand-stack)))
-    (check-array array index '(reference))
+    (check-array array index)
     (stack-push operand-stack (aref array index))))
 
 (defun aastore (operand-stack)
@@ -71,7 +70,7 @@
          (array (typed-array-elements a))
          (index (stack-pop operand-stack))
         (value (stack-pop operand-stack)))
-    (check-array array index '(reference))
+    (check-array array index)
     (check-array-can-store array value)
     (setf (aref array index) value)))
 
@@ -106,28 +105,28 @@
              -1)
             (t (et-entry-target h))))))
 
-(defun array-load (operand-stack types)
-    (let ((array (stack-pop operand-stack))
-        (index (stack-pop operand-stack)))
-      (check-array array index types)
-      (stack-push operand-stack (aref array index))))
+(defun array-load (operand-stack)
+  (let ((array (stack-pop operand-stack))
+	(index (stack-pop operand-stack)))
+    (check-array array index)
+    (stack-push operand-stack (aref array index))))
 
 (defun array-store (operand-stack types)
   (let ((array (stack-pop operand-stack))
         (index (stack-pop operand-stack))
         (value (stack-pop operand-stack)))
-    (check-array array index types)
+    (check-array array index)
     (check-obj-type value types)
     (setf (aref array index) value)))
 
 (defmacro baload (operand-stack)
-  `(array-load ,operand-stack '(byte boolean)))
+  `(array-load ,operand-stack))
 
 (defmacro bastore (operand-stack)
-  `(array-store ,operand-stack '(bye boolean)))
+  `(array-store ,operand-stack '(byte boolean)))
 
 (defmacro caload (operand-stack)
-  `(array-load ,operand-stack '(char)))
+  `(array-load ,operand-stack))
 
 (defmacro castore (operand-stack)
   `(array-store ,operand-stack '(char)))
@@ -158,7 +157,7 @@
 			   (stack-pop ,operand-stack))))
 
 (defmacro daload (operand-stack)
-  `(array-load ,operand-stack '(double)))
+  `(array-load ,operand-stack))
 
 (defmacro dastore (operand-stack)
   `(array-store ,operand-stack '(double)))
@@ -169,35 +168,94 @@
 			       (stack-pop ,operand-stack)
 			       ,is-l)))
 
-(defmacro darith (operand-stack b a fn)
+(defmacro arith (operand-stack b a fn)
   `(stack-push ,operand-stack (funcall ,fn ,a ,b)))
 
 (defmacro ddiv (operand-stack)
-  `(darith ,operand-stack
-	   (stack-pop ,operand-stack)
-	   (stack-pop ,operand-stack)
-	   #'double-div))
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'double-div))
 
 (defmacro loadv (locals operand-stack index)
   `(stack-push ,operand-stack (aref ,locals ,index)))
 
 (defmacro dmul (operand-stack)
-  `(darith ,operand-stack
-	   (stack-pop ,operand-stack)
-	   (stack-pop ,operand-stack)
-	   #'double-mul))
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'double-mul))
 
 (defmacro dneg (operand-stack)
   `(stack-push ,operand-stack (double-neg (stack-pop ,operand-stack))))
 
 (defmacro drem (operand-stack)
-  `(darith ,operand-stack
-	   (stack-pop ,operand-stack)
-	   (stack-pop ,operand-stack)
-	   #'double-rem))
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'double-rem))
 
 (defmacro dsub (operand-stack)
-  `(darith ,operand-stack
-	   (stack-pop ,operand-stack)
-	   (stack-pop ,operand-stack)
-	   #'double-sub))
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'double-sub))
+
+(defmacro f2i (operand-stack)
+  `(stack-push ,operand-stack 
+               (float-to-integer (stack-pop ,operand-stack) 'integer)))
+
+(defmacro f2l (operand-stack)
+  `(stack-push ,operand-stack 
+               (float-to-integer (stack-pop ,operand-stack) 'long)))
+
+(defmacro fadd (operand-stack)
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'float-add))
+
+(defmacro faload (operand-stack)
+  `(array-load ,operand-stack))
+
+(defmacro fastore (operand-stack)
+  `(array-store ,operand-stack '(float)))
+
+(defmacro fdiv (operand-stack)
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'float-div))
+
+(defmacro fmul (operand-stack)
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'float-mul))
+
+(defmacro fneg (operand-stack)
+  `(stack-push ,operand-stack (float-neg (stack-pop ,operand-stack))))
+
+(defmacro frem (operand-stack)
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'float-rem))
+
+(defmacro fsub (operand-stack)
+  `(arith ,operand-stack
+	  (stack-pop ,operand-stack)
+	  (stack-pop ,operand-stack)
+	  #'float-sub))
+
+(defun getfield (operand-stack constant-pool index)
+  (let ((objref (stack-pop operand-stack))
+	(sym (constant-pool-string-at constant-pool index)))
+    (check-not-null objref)
+    (stack-push operand-stack (resolve-field objref sym))))
+
+(defun getstatic (operand-stack constant-pool index)
+  (let ((objref (stack-pop operand-stack))
+	(sym (constant-pool-string-at constant-pool index)))
+    (check-not-null objref)
+    (stack-push operand-stack (resolve-static-field objref sym))))
