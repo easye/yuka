@@ -35,7 +35,8 @@
   (format t "(monitor-exit) not implemented!~%"))
 
 (defun frame-run (self)
-  (let* ((pc 0) (code (frame-code self))
+  (let* ((pc 0) (new-pc nil) 
+         (code (frame-code self))
          (bcode (code-attribute-code code)) 
          (len (length bcode))
          (cp (klass-constant-pool (frame-klass self)))
@@ -81,10 +82,10 @@
            ((astore_3)
             (astore locals operand-stack 3))
            ((athrow)
-            (setf pc (athrow operand-stack 
+            (setf new-pc (athrow operand-stack 
                              (code-attribute-exception-table code)
                              cp))                             
-            (when (< pc 0)
+            (when (< new-pc 0)
               (monitor-exit)
               (setf (frame-has-unhandled-exception self) t)
               (setf return-from-frame t)))
@@ -200,9 +201,14 @@
 	    (getfield operand-stack cp (opcode-operands opc)))
 	   ((getstatic)
 	    (getstatic operand-stack cp (opcode-operands opc)))
+           ((goto goto_w)
+            (setf new-pc (goto bcode len (opcode-operands opc))))
            ((return)
             (monitor-exit)
             (setf return-from-frame t)))
-         (setf pc (1+ pc)))))
+         (cond (new-pc
+                (setf pc new-pc)
+                (setf new-pc nil))
+               (t (setf pc (1+ pc)))))))
   self)
 

@@ -1,5 +1,6 @@
 Immediate:
- * Implement rest of opcodes (from goto).
+ * Read StackMapTable and all other attributes of code.
+ * Implement rest of opcodes (from i2b).
  * Implement support for basic classes.
  * Test all opcode implementations.
 

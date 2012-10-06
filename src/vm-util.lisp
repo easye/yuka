@@ -34,3 +34,6 @@
   (format t "resolve-static-field: ~a in ~a not implemented!~%" 
 	  objectref field-name)
   nil)
+
+(defmacro vm-panic (msg args)
+  `(error "Fatal Error: ~a [~a]~%" ,msg ,args))

@@ -259,3 +259,13 @@
 	(sym (constant-pool-string-at constant-pool index)))
     (check-not-null objref)
     (stack-push operand-stack (resolve-static-field objref sym))))
+
+(defun goto (byte-code byte-code-len jump-to)
+  (let ((pc (loop for i from 0 to (1- byte-code-len)
+               do (let ((opc-index (opcode-index (aref byte-code i))))
+                    (when (= opc-index jump-to)
+                      (return opc-index))))))
+    (if (null pc)
+        (vm-panic "`goto` instruction has invalid offset." jump-to))
+    pc))
+  
