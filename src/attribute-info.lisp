@@ -188,8 +188,7 @@
 	   (cons 'local-variable-type-table (read-local-variable-table stream (read-u2 stream))))
 	  ((string= attr-name "StackMapTable")
 	   (cons 'stack-map-table (read-stack-map-table stream (read-u2 stream))))
-	  (t
-	   (cons name-index (read-info stream attr-len))))))
+	  (t (cons name-index (read-info stream attr-len))))))
 
 (declaim (inline read-attribute-infos))
 (defun read-attribute-infos (stream count constant-pool)
