@@ -1,6 +1,5 @@
 Immediate:
- * Read StackMapTable and all other attributes of code.
- * Implement rest of opcodes (from i2b).
+ * Implement rest of opcodes (from lookupswitch).
  * Implement support for basic classes.
  * Test all opcode implementations.
 

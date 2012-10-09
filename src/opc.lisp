@@ -288,20 +288,16 @@
   (let ((opc (aref *opcode-symbols* (aref code offset))))
     (case opc
       ((invokespecial anewarray checkcast getfield getstatic
-		      if_acmpne if_acmpeq if_icmpeq if_icmpne
-		      if_icmplt if_icmpge if_icmpgt if_icmple
-		      ifeq ifne iflt ifge ifgt ifle ifnonnull
-		      ifnull instanceof invokestatic invokevirtual
-		      jsr ldc_w ldc2_w new putfield putstatic sipush)
+		      instanceof invokestatic invokevirtual
+		      ldc_w ldc2_w new putfield putstatic sipush)
        (cons (+ offset 2) (cons opc (index-from-bytes code offset))))
-      ((goto)
+      ((goto if_acmpne if_acmpeq if_icmpeq if_icmpne if_icmplt 
+	     if_icmpge if_icmpgt if_icmple ifeq ifne iflt ifge ifgt ifle
+	     ifnonnull ifnull jsr)
        (cons (+ offset 2) (cons opc (byte-index-from-bytes code offset))))
       ((aload astore bipush dload dstore fload fstore iload istore ldc
 	      lload lstore newarray ret)
        (cons (1+ offset) (cons opc (aref code (1+ offset)))))
-      ((goto_w)
-       (cons (+ offset 4) (cons opc (cons (index-from-bytes code offset)
-					  (index-from-bytes code (+ offset 2))))))
       ((iinc)
        (cons (+ offset 2) (cons opc (cons (aref code (1+ offset)) (aref code (+ 2 offset))))))
       ((invokedynamic)
@@ -309,7 +305,7 @@
       ((invokeinterface)
        (cons (+ offset 4) (cons opc (cons (index-from-bytes code offset)
 					  (aref code (+ 3 offset))))))
-      ((jsr_w)
+      ((jsr_w goto_w)
        (cons (+ offset 4) (cons opc (wide-index-from-bytes code offset))))
       ((lookupswitch)
        (get-lookupswitch code (skip-padding offset)))

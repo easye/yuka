@@ -57,6 +57,16 @@
        v
        (if (> v 0) e s)))
 
+(defun make-char (v)
+  (if (is-int-in-range v +min-short+ +max-short+)
+      v
+      (if (> v 0) +max-short+ +min-short+)))
+
+(declaim (inline make-byte))
+(defun make-byte (v)
+  (make-i v +min-byte+ +max-byte+))
+
+(declaim (inline make-integer))
 (defun make-integer (v)
   (make-i v +min-integer+ +max-integer+))
 
@@ -64,9 +74,15 @@
 (defun integer-info-to-int (iinfo)
   (make-integer (integer-info-bytes iinfo)))
 
+(declaim (inline make-short))
+(defun make-short (v)
+  (make-i v +min-byte+ +max-byte+))
+  
+(declaim (inline make-long))
 (defun make-long (v)
   (make-i v +min-long+ +max-long+))
 
+(declaim (inline make-float))
 (defun make-float (v)
   (make-f v +min-float+ +max-float+)) 
 
@@ -74,6 +90,7 @@
 (defun float-info-to-float (finfo)
   (make-float (float-info-value finfo)))
 
+(declaim (inline make-double))
 (defun make-double (v)
   (make-f v +min-double+ +max-double+))
 
@@ -254,6 +271,7 @@
 	     +negative-infinity+))
 	(t (funcall constructor (/ v1 v2)))))
 
+(declaim (inline double-div))
 (defun double-div (v1 v2)
   (div-f v1 v2 #'make-double))
 
@@ -277,6 +295,7 @@
 	 (dbl-mul-with-inf v1 v2))
 	(t (funcall constructor (* v1 v2)))))
 
+(declaim (inline double-mul))
 (defun double-mul (v1 v2)
   (mul-f v1 v2 #'make-double))
 
@@ -313,9 +332,11 @@
 	 dividend)
 	(t (funcall constructor (rem dividend divisor)))))
 
+(declaim (inline double-rem))
 (defun double-rem (dividend divisor)
   (rem-f dividend divisor #'make-double))
 
+(declaim (inline double-sub))
 (defun double-sub (a b)
   (make-double (- a b)))
 
@@ -345,24 +366,139 @@
       (is-refernce obj)
       (is-return-address obj)))
 
+(declaim (inline is-category-2))
 (defun is-category-2 (obj)
   (or (is-long obj) 
       (is-double obj)))
 
+(declaim (inline float-add))
 (defun float-add (v1 v2)
   (add-f v1 v2 #'make-float))
 
+(declaim (inline float-div))
 (defun float-div (v1 v2)
   (div-f v1 v2 #'make-float))
 
+(declaim (inline float-mul))
 (defun float-mul (v1 v2)
   (mul-f v1 v2 #'make-float))
 
+(declaim (inline float-neg))
 (defun float-neg (v)
   (neg-f v #'make-float))
 
+(declaim (inline float-rem))
 (defun float-rem (dividend divisor)
   (rem-f dividend divisor #'make-float))
 
+(declaim (inline float-sub))
 (defun float-sub (a b)
   (make-float (- a b)))
+
+(declaim (inline integer-to-double))
+(defun integer-to-double (self)
+  (make-double (coerce self 'double-float)))
+
+(declaim (inline integer-to-float))
+(defun integer-to-float (self)
+  (make-float (coerce self 'float)))
+
+(defmacro div-i (a b constructor)
+  `(if (zerop ,b)
+      'ArithmeticException
+      (funcall ,constructor (floor (/ ,a ,b)))))
+
+(defmacro rem-i (a b constructor)
+  `(if (zerop ,b)
+       'ArithmeticException
+       (funcall ,constructor (rem ,a ,b))))
+
+(declaim (inline integer-add))
+(defun integer-add (a b)
+  (make-integer (+ a b)))
+
+(declaim (inline integer-sub))
+(defun integer-sub (a b)
+  (make-integer (- a b)))
+
+(declaim (inline integer-div))
+(defun integer-div (a b)
+  (div-i a b #'make-integer))
+
+(declaim (inline integer-mul))
+(defun integer-mul (a b)
+  (make-integer (* a b)))
+
+(declaim (inline integer-and))
+(defun integer-and (a b)
+  (make-integer (logand a b)))
+
+(declaim (inline integer-or))
+(defun integer-or (a b)
+  (make-integer (logior a b)))
+
+(declaim (inline integer-neg))
+(defun integer-neg (self)
+  (make-integer (- self)))
+
+(declaim (inline integer-rem))
+(defun integer-rem (a b)
+  (rem-i a b #'make-integer))
+
+(declaim (inline integer-shift-left))
+(defun integer-shift-left (a b)
+  (make-integer (ash a b)))
+
+(declaim (inline integer-shift-right))
+(defun integer-shift-right (a b)
+  (make-integer (ash a (- b))))
+
+(declaim (inline integer-logical-shift-right))
+(defun integer-logical-shift-right (a b)
+  (make-integer (let* ((s (logand b #x1f))
+		       (r (ash a (- s))))
+		  (if (> a 0)
+		      r
+		      (+ r (ash 2 (lognot s)))))))
+
+(declaim (inline integer-xor))
+(defun integer-xor (a b)
+  (make-integer (logxor a b)))
+
+(declaim (inline long-to-double))
+(defun long-to-double (self)
+  (make-double (coerce self 'double-float)))
+
+(declaim (inline long-to-float))
+(defun long-to-float (self)
+  (make-float (coerce self 'float)))
+
+(declaim (inline long-to-integer))
+(defun long-to-integer (self)
+  (make-integer self))
+
+(declaim (inline long-add))
+(defun long-add (a b)
+  (make-long (+ a b)))
+
+(declaim (inline long-and))
+(defun long-and (a b)
+  (make-long (logand a b)))
+
+(declaim (inline long-compare))
+(defun long-compare (a b)
+  (make-long (cond ((= a b) 0)
+		   ((> a b) 1)
+		   ((< a b) -1))))
+
+(declaim (inline long-div))
+(defun long-div (a b)
+  (div-i a b #'make-long))
+
+(declaim (inline long-mul))
+(defun long-mul (a b)
+  (make-long (* a b)))
+
+(declaim (inline long-neg))
+(defun long-neg (a)
+  (make-long (- a)))

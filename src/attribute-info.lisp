@@ -1,8 +1,5 @@
 (in-package :yuka)
 
-(defmacro read-info (stream count)
-  `(read-array ,stream ,count #'read-byte))
-
 (defstruct code-attribute
   (max-stack 0 :type integer)
   (max-locals 0 :type integer)
@@ -15,6 +12,10 @@
   (to 0 :type integer)
   (target 0 :type integer)
   (type 0 :type integer))
+
+(declaim (inline read-info))
+(defun read-info (stream count)
+  (read-array stream count #'read-byte))
 
 (defun read-code (stream len)
   (if (or (= len 0) (>= len +max-code-len+))
@@ -53,16 +54,18 @@
                (code-attribute-exception-table self) constant-pool)))
     (format s "~%    LineNumberTable:~%")
     (format s "~a~%" (attribute-infos-to-string (code-attribute-attributes self) 
-                                                constant-pool))))
+						  constant-pool))))
 
+(declaim (inline read-et-entry))
 (defun read-et-entry (stream)
   (make-et-entry :from (read-u2 stream)
                  :to (read-u2 stream)
                  :target (read-u2 stream)
                  :type (read-u2 stream)))
 
-(defmacro read-exception-table (stream count)
-  `(read-array ,stream ,count #'read-et-entry))
+(declaim (inline read-exception-table))
+(defun read-exception-table (stream count)
+  (read-array stream count #'read-et-entry))
 
 (defun read-line-number-table (stream count)
   (let ((tbl (make-array count)))
@@ -70,19 +73,127 @@
        do (setf (aref tbl i) (cons (read-u2 stream) (read-u2 stream))))
     tbl))
 
+(defstruct local-variable
+  (start-pc 0 :type integer)
+  (length 0 :type integer)
+  (name-index 0 :type integer)
+  (descriptor-index 0 :type integer)
+  (index 0 :type integer))
+
+(declaim (inline read-local-variable-table-enrty))
+(defun read-local-variable-table-enrty (stream)
+  (make-local-variable :start-pc (read-u2 stream)
+		       :length (read-u2 stream)
+		       :name-index (read-u2 stream)
+		       :descriptor-index (read-u2 stream)
+		       :index (read-u2 stream)))
+
+(declaim (inline read-local-variable-table))
+(defun read-local-variable-table (stream count)
+  (read-array stream count #'read-local-variable-table-enrty))
+
+(defun read-verification-type-info (stream tag)
+  (case tag
+    ((0) 'top)
+    ((1) 'integer)
+    ((2) 'float)
+    ((3) 'double)
+    ((4) 'long)
+    ((5) 'null)
+    ((6) 'uninitialized-this)
+    ((7) (cons 'object (read-u2 stream)))
+    ((8) (cons 'uninitialized (read-u2 stream)))
+    (t (error "Invalid verification type info tag: ~a~%" tag))))
+
+(declaim (inline verification-type-info-tag))
+(defun verification-type-info-tag (self)
+  (if (consp self)
+      (car self)
+      self))
+
+(declaim (inline verification-type-info-data))
+(defun verification-type-info-data (self)
+  (if (consp self)
+      (cdr self)
+      nil))
+
+(declaim (inline read-verification-type-info))
+(defun read-verification-type-infos (stream count)
+  (read-array stream count #'(lambda (stream)
+			       (read-verification-type-info 
+				stream (read-byte stream)))))
+
+(defun read-full-frame (stream)
+  (cons (read-u2 stream)
+	(cons (read-verification-type-infos stream (read-u2 stream))
+	      (read-verification-type-infos stream (read-u2 stream)))))
+
+(defun read-stack-map-frame (stream tag)
+  (cond ((and (>= tag 0) (<= tag 63))
+	 (cons 'same nil))
+	((and (>= tag 64) (<= tag 127))
+	 (cons 'same-locals-1-stack-item (read-verification-type-infos stream 1)))
+	((= tag 247)
+	 (cons 'same-locals-1-stack-item-extended (cons (read-u2 stream)
+							(read-verification-type-infos stream 1))))
+	((and (>= tag 248) (<= tag 250))
+	 (cons 'chop (read-u2 stream)))
+	((= tag 251)
+	 (cons 'same-extended (read-u2 stream)))
+	((and (>= tag 252) (<= tag 254))
+	 (cons 'append (cons (read-u2 stream)
+			     (read-verification-type-infos stream 1))))
+	((= tag 255)
+	 (cons 'full (read-full-frame stream)))
+	(t (error "Invalid stack-map-frame tag: ~a~%" tag))))
+
+(declaim (inline stack-map-frame-tag))
+(defun stack-map-frame-tag (self)
+  (car self))
+
+(defun stack-map-frame-offset-delta (self)
+  (if (consp (cdr self))
+      (cadr self)
+      -1))
+
+(defun stack-map-frame-data (self)
+  (if (consp (cdr self))
+      (cddr self)
+      (cdr self)))
+
+(declaim (inline full-frame-locals))
+(defun full-frame-locals (self)
+  (car (stack-map-frame-data self)))
+
+(declaim (inline full-frame-items))
+(defun full-frame-items (self)
+  (cdr (stack-map-frame-data self)))
+
+(declaim (inline read-stack-map-table))
+(defun read-stack-map-table (stream count)
+  (read-array stream count #'(lambda (stream)
+			       (read-stack-map-frame stream (read-byte stream)))))
+
 (defun read-attribute-info (stream constant-pool)
   (let* ((name-index (read-u2 stream))
 	 (attr-len (read-u4 stream))
 	 (attr-name (constant-pool-string-at constant-pool name-index)))
     (cond ((string= attr-name "Code")
-	   (cons :code (read-code-attribute stream constant-pool)))
+	   (cons 'code (read-code-attribute stream constant-pool)))
 	  ((string= attr-name "LineNumberTable")
-	   (cons :line-number-table (read-line-number-table stream (read-u2 stream))))
+	   (cons 'line-number-table (read-line-number-table stream (read-u2 stream))))
+	  ((string= attr-name "LocalVariableTable")
+	   (cons 'local-variable-table (read-local-variable-table stream (read-u2 stream))))
+	  ((string= attr-name "LocalVariableTypeTable")
+	   (cons 'local-variable-type-table (read-local-variable-table stream (read-u2 stream))))
+	  ((string= attr-name "StackMapTable")
+	   (cons 'stack-map-table (read-stack-map-table stream (read-u2 stream))))
 	  (t
 	   (cons name-index (read-info stream attr-len))))))
 
-(defmacro read-attribute-infos (stream count constant-pool)
-  `(read-array-with-user-data ,stream ,count ,constant-pool #'read-attribute-info))
+(declaim (inline read-attribute-infos))
+(defun read-attribute-infos (stream count constant-pool)
+  (read-array-with-user-data stream count constant-pool #'read-attribute-info))
 
 (defun read-code-attribute (stream constant-pool)
   (make-code-attribute :max-stack (read-u2 stream)
@@ -97,6 +208,63 @@
        do (let ((a (aref self i)))
 	    (format s "      line ~a: ~a~%" (cdr a) (car a))))))
 
+(defun verification-type-info-to-string (self constant-pool)
+  (with-output-to-string (s)
+    (let ((tag (verification-type-info-tag self)))
+      (format s "~a " tag)
+      (case tag
+	((object) 
+	 (format s "~a " (constant-pool-string-at 
+			  constant-pool 
+			  (verification-type-info-data self))))
+	((uninitialized)
+	 (format s "~a " (verification-type-info-data self)))))))
+
+(defun verification-type-infos-to-string (self constant-pool)
+  (format t "~a~%" self)
+  (with-output-to-string (s)
+    (loop for i from 0 to (1- (length self))
+       do (format s "~a" (verification-type-info-to-string (aref self i)
+							   constant-pool)))))
+
+(defun stack-map-frame-to-string (self constant-pool)
+  (with-output-to-string (s)
+    (let ((tag (stack-map-frame-tag self)))
+      (format s "     frame_type = ~a~%" tag)
+      (case tag
+	((chop same-extended)
+	 (format s "     offset_delta = ~a~%"
+		 (stack-map-frame-offset-delta self)))
+	((same-locals-1-stack-item)
+	 (format s "      stack = ~a~%"
+		 (verification-type-infos-to-string (stack-map-frame-data self) 
+						    constant-pool)))
+	((same-locals-1-stack-item-extended)
+	 (format s "     offset_delta = ~a~%     stack = [~a]~%"
+		 (stack-map-frame-offset-delta self)
+		 (verification-type-infos-to-string (stack-map-frame-data self) 
+						    constant-pool)))
+	((append)
+	 (format s "     offset_delta = ~a~%     locals = [~a]~%"
+		 (stack-map-frame-offset-delta self)
+		 (verification-type-infos-to-string (stack-map-frame-data self) 
+						    constant-pool)))
+	((full)
+	 (format s "     offset_delta = ~a~%     stack = [~a]~%     locals = [~a]~%"
+		 (stack-map-frame-offset-delta self)
+		 (verification-type-infos-to-string (full-frame-items self) 
+						    constant-pool)
+		 (verification-type-infos-to-string (full-frame-locals self) 
+						    constant-pool)))
+	(t (error "Invalid stack-map-frame-tag: ~a~%" tag))))))
+
+(defun stack-map-table-to-string (self constant-pool)
+  (with-output-to-string (s)
+    (format s "     StackMapTable: number_of_entries = ~a~%" (length self))
+    (loop for i from 0 to (1- (length self))
+	 do (let ((frame (aref self i)))
+	      (format s "    ~a~%" (stack-map-frame-to-string frame constant-pool))))))
+
 (defmacro attribute-info-tag (self)
   `(car ,self))
 
@@ -104,7 +272,7 @@
   `(cdr ,self))
 
 (defmacro is-code-attribute (self)
-  `(eq :code (attribute-info-tag ,self)))
+  `(eq 'code (attribute-info-tag ,self)))
 
 (defun attribute-info-length (self)
   (length (attribute-info-info self)))
@@ -112,15 +280,16 @@
 (defun attribute-info-to-string (self constant-pool)
   (let ((info (attribute-info-info self)))
     (case (attribute-info-tag self)
-      ((:code)
+      ((code)
        (code-attribute-to-string info constant-pool))
-      ((:line-number-table)
+      ((line-number-table)
        (line-number-table-to-string info))
-      (t 
-       info))))
+      ((stack-map-table)
+       (stack-map-table-to-string info constant-pool))
+      (t info))))
 
 (defun attribute-infos-to-string (self constant-pool)
   (with-output-to-string (s)
     (map 'nil #'(lambda (ainfo)
-		  (format s "~a" (attribute-info-to-string ainfo constant-pool)))
+		  (format s "~%~a" (attribute-info-to-string ainfo constant-pool)))
 	 self)))

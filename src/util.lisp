@@ -50,6 +50,14 @@
        do (setf (aref data i) (funcall reader-fn stream user-data)))
     data))
 
+(declaim (inline neq))
+(defun neq (a b)
+  (not (eq a b)))
+
+(declaim (inline n=))
+(defun n= (a b)
+  (not (= a b)))
+
 (defstruct iterator
   (sequence nil)
   (state nil)) ;; length, current index etc.

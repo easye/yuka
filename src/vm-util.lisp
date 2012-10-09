@@ -37,3 +37,32 @@
 
 (defmacro vm-panic (msg args)
   `(error "Fatal Error: ~a [~a]~%" ,msg ,args))
+
+(defun is-instance-of (klass-name objectref)
+  (format t "(is-instance-of ~a ~a) not implemented!~%"
+	  klass-name objectref)
+  nil)
+
+(defun invoke-dynamic (call-site-spec operand-stack)
+  (format t "(invoke-dynamic ~a ~a) not implemented!~%"
+	  call-site-spec operand-stack))
+
+(defun invoke-interface (method-spec operand-stack count)
+  (format t "(invoke-interface ~a ~a ~a) not implemented!~%"
+	  method-spec operand-stack count))
+
+(defun invoke-special (method-spec operand-stack)
+  (format t "(invoke-special ~a ~a) not implemented!~%"
+	  method-spec operand-stack))
+
+(defun invoke-static (method-spec operand-stack)
+  (format t "(invoke-static ~a ~a) not implemented!~%"
+	  method-spec operand-stack))
+
+(defun invoke-virtual (method-spec operand-stack)
+  (format t "(invoke-virtual ~a ~a) not implemented!~%"
+	  method-spec operand-stack))
+
+(declaim (inline make-ret-address))
+(defun make-ret-address (address)
+  (cons 'retaddress address))

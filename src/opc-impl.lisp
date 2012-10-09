@@ -168,38 +168,32 @@
 			       (stack-pop ,operand-stack)
 			       ,is-l)))
 
-(defmacro arith (operand-stack b a fn)
+(defmacro arith-helper (operand-stack b a fn)
   `(stack-push ,operand-stack (funcall ,fn ,a ,b)))
 
+(defmacro arith (operand-stack fn)
+  `(arith-helper ,operand-stack
+		 (stack-pop ,operand-stack)
+		 (stack-pop ,operand-stack)
+		 ,fn))
+
 (defmacro ddiv (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'double-div))
+  `(arith ,operand-stack #'double-div))
 
 (defmacro loadv (locals operand-stack index)
   `(stack-push ,operand-stack (aref ,locals ,index)))
 
 (defmacro dmul (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'double-mul))
+  `(arith ,operand-stack #'double-mul))
 
 (defmacro dneg (operand-stack)
   `(stack-push ,operand-stack (double-neg (stack-pop ,operand-stack))))
 
 (defmacro drem (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'double-rem))
+  `(arith ,operand-stack #'double-rem))
 
 (defmacro dsub (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'double-sub))
+  `(arith ,operand-stack #'double-sub))
 
 (defmacro f2i (operand-stack)
   `(stack-push ,operand-stack 
@@ -210,10 +204,7 @@
                (float-to-integer (stack-pop ,operand-stack) 'long)))
 
 (defmacro fadd (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'float-add))
+  `(arith ,operand-stack #'float-add))
 
 (defmacro faload (operand-stack)
   `(array-load ,operand-stack))
@@ -222,31 +213,19 @@
   `(array-store ,operand-stack '(float)))
 
 (defmacro fdiv (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'float-div))
+  `(arith ,operand-stack #'float-div))
 
 (defmacro fmul (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'float-mul))
+  `(arith ,operand-stack #'float-mul))
 
 (defmacro fneg (operand-stack)
   `(stack-push ,operand-stack (float-neg (stack-pop ,operand-stack))))
 
 (defmacro frem (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'float-rem))
+  `(arith ,operand-stack #'float-rem))
 
 (defmacro fsub (operand-stack)
-  `(arith ,operand-stack
-	  (stack-pop ,operand-stack)
-	  (stack-pop ,operand-stack)
-	  #'float-sub))
+  `(arith ,operand-stack #'float-sub))
 
 (defun getfield (operand-stack constant-pool index)
   (let ((objref (stack-pop operand-stack))
@@ -260,12 +239,152 @@
     (check-not-null objref)
     (stack-push operand-stack (resolve-static-field objref sym))))
 
-(defun goto (byte-code byte-code-len jump-to)
+(declaim (inline find-pc))
+(defun find-pc (opc-sym byte-code byte-code-len jump-to)
   (let ((pc (loop for i from 0 to (1- byte-code-len)
                do (let ((opc-index (opcode-index (aref byte-code i))))
                     (when (= opc-index jump-to)
                       (return opc-index))))))
-    (if (null pc)
-        (vm-panic "`goto` instruction has invalid offset." jump-to))
+    (when (null pc)
+      (vm-panic "Invalid jump offset." (cons opc-sym jump-to)))
     pc))
-  
+
+(defmacro goto (byte-code byte-code-len jump-to)
+  `(find-pc 'goto ,byte-code ,byte-code-len ,jump-to))
+
+(defmacro type-cast (operand-stack constructor)
+  `(stack-push ,operand-stack (funcall ,constructor (stack-pop ,operand-stack))))
+
+(defmacro iadd (operand-stack)
+  `(arith ,operand-stack #'integer-add))
+
+(defmacro iaload (operand-stack)
+  `(array-load ,operand-stack))
+
+(defmacro iand (operand-stack)
+  `(arith ,operand-stack #'integer-and))
+
+(defmacro iastore (operand-stack)
+  `(array-store ,operand-stack '(integer)))
+
+(declaim (inline idiv))
+(defun idiv (operand-stack)
+  (let ((r (arith operand-stack #'integer-div)))
+    (when (symbolp r)
+      (throw-exception r))
+    r))
+
+(defmacro if-cmp (operand-stack predicate jump-to)
+  `(if (funcall ,predicate 
+		(stack-pop ,operand-stack)
+		(stack-pop ,operand-stack))
+       ,jump-to
+       nil))
+
+(defmacro if-cmp-with (operand-stack value predicate jump-to)
+  `(if (funcall ,predicate 
+		(stack-pop ,operand-stack)
+		,value)
+       ,jump-to
+       nil))
+
+(declaim (inline iinc))
+(defun iinc (locals index const)
+  (let ((v (aref locals index)))
+    (setf (aref locals index) (+ v const))))
+
+(defmacro imul (operand-stack)
+  `(arith ,operand-stack #'integer-mul))
+
+(defmacro ineg (operand-stack)
+  `(stack-push ,operand-stack (integer-neg (stack-pop ,operand-stack))))
+
+(defmacro instanceof (operand-stack constant-pool index)
+  `(stack-push ,operand-stack 
+	       (is-instance-of (constant-pool-string-at ,constant-pool ,index)
+			       (stack-pop ,operand-stack))))
+
+(defmacro invokedynamic (operand-stack constant-pool index)
+  `(invoke-dynamic (constant-pool-string-at ,constant-pool ,index)
+		   ,operand-stack))
+
+(defmacro invokeinterface (operand-stack constant-pool index count)
+  `(invoke-interface (constant-pool-string-at ,constant-pool ,index)
+		     ,operand-stack ,count))
+
+(defmacro invokespecial (operand-stack constant-pool index)
+  `(invoke-special (constant-pool-string-at ,constant-pool ,index)
+		   ,operand-stack))
+
+(defmacro invokestatic (operand-stack constant-pool index)
+  `(invoke-static (constant-pool-string-at ,constant-pool ,index)
+		  ,operand-stack))
+
+(defmacro invokevirtual (operand-stack constant-pool index)
+  `(invoke-virtual (constant-pool-string-at ,constant-pool ,index)
+		  ,operand-stack))
+
+(defmacro ior (operand-stack)
+  `(arith ,operand-stack #'integer-or))
+
+(declaim (inline irem))
+(defun irem (operand-stack)
+  (let ((r (arith operand-stack #'integer-rem)))
+    (when (symbolp r)
+      (throw-exception r))
+    r))
+
+(defmacro ishl (operand-stack)
+  `(arith ,operand-stack #'integer-shift-left))
+
+(defmacro ishr (operand-stack)
+  `(arith ,operand-stack #'integer-shift-right))
+
+(defmacro isub (operand-stack)
+  `(arith ,operand-stack #'integer-sub))
+
+(defmacro iushr (operand-stack)
+  `(arith ,operand-stack #'integer-logical-shift-right))
+
+(defmacro ixor (operand-stack)
+  `(arith ,operand-stack #'integer-xor))
+
+(declaim (inline jsr))
+(defun jsr (operand-stack byte-code 
+	    byte-code-len jump-to
+	    next-opc)
+  (let ((pc (find-pc 'jsr byte-code byte-code-len jump-to)))
+    (stack-push operand-stack (make-ret-address (opcode-index next-opc)))
+    pc))
+
+(defmacro ladd (operand-stack)
+  `(arith ,operand-stack #'long-add))
+
+(defmacro laload (operand-stack)
+  `(array-load ,operand-stack))
+
+(defmacro land (operand-stack)
+  `(arith ,operand-stack #'long-and))
+
+(defmacro lastore (operand-stack)
+  `(array-store ,operand-stack '(long)))
+
+(defmacro lcmp (operand-stack)
+  `(arith ,operand-stack #'long-compare))
+
+(defmacro ldc (operand-stack constant-pool index)
+  `(format t "(ldc ~a ~a ~a) not implemented!~%"
+	   ,operand-stack ,constant-pool ,index))
+
+(defmacro ldc2 (operand-stack constant-pool index)
+  `(format t "(ldc2 ~a ~a ~a) not implemented!~%"
+	   ,operand-stack ,constant-pool ,index))
+
+(defmacro ldiv (operand-stack)
+  `(arith ,operand-stack #'long-div))
+
+(defmacro lmul (operand-stack)
+  `(arith ,operand-stack #'long-mul))
+
+(defmacro lneg (operand-stack)
+  `(stack-push ,operand-stack (long-neg (stack-pop ,operand-stack))))
