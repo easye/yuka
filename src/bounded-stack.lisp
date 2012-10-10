@@ -132,3 +132,9 @@
 	 (if (is-category-1 (stack-at self 2))
 	     (stack-dup2-x2-form1 self)
 	     (stack-dup2-x2-form3 self)))))
+
+(declaim (inline stack-swap))
+(defun stack-swap (self)
+  (let ((a (stack-pop self))
+	(b (stack-pop self)))
+    (stack-push (stack-push self a) b)))

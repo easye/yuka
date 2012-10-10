@@ -261,28 +261,37 @@
        do (setf (aref match-pairs i) (cons (wide-index-from-bytes code offset)
 					   (wide-index-from-bytes code (+ 4 offset))))
 	 (setf offset (+ 8 offset)))
-    (cons offset (cons :lookupswitch (cons default-byte match-pairs)))))
+    (cons offset (cons default-byte match-pairs))))
+
+(defstruct table-switch
+  (default 0 :type integer)
+  (low 0 :type integer)
+  (hi 0 :type integer)
+  (jump-offsets nil :type simple-array))
 
 (defun get-tableswitch (code offset)
-  (let* ((default-byte (wide-index-from-bytes code offset))
-	 (low-byte (wide-index-from-bytes code (+ 4 offset)))
-	 (hi-byte (wide-index-from-bytes code (+ 8 offset)))
-	 (count (1+ (- hi-byte low-byte)))
+  (let* ((default (wide-index-from-bytes code offset))
+	 (low (wide-index-from-bytes code (+ 4 offset)))
+	 (hi (wide-index-from-bytes code (+ 8 offset)))
+	 (count (1+ (- hi low)))
 	 (jump-indices (make-array count)))
     (setf offset (+ 12 offset))
     (loop for i from 0 to (1- count)
        do (setf (aref jump-indices i) (aref code offset))
 	 (setf offset (1+ offset)))
-    (cons offset (cons :tableswitch (cons default-byte jump-indices)))))
+    (cons offset (make-table-switch :default default
+				    :low low
+				    :hi hi
+				    :jump-offsets jump-indices))))
 
 (defun get-wide (code offset)
   (let ((opc (aref *opcode-symbols* (aref code offset))))
     (case opc
       ((iinc)
-       (cons (+ 5 offset) (cons :wide (cons (index-from-bytes code (1+ offset))
-					    (index-from-bytes code (+ 3 offset))))))
+       (cons (+ 5 offset) (cons (index-from-bytes code (1+ offset))
+				(index-from-bytes code (+ 3 offset)))))
       (t 
-       (cons (+ 3 offset) (cons :wide (index-from-bytes code (1+ offset))))))))
+       (cons (+ 3 offset) (index-from-bytes code (1+ offset)))))))
 
 (defun next-opcode (code offset)
   (let ((opc (aref *opcode-symbols* (aref code offset))))
@@ -319,7 +328,7 @@
       (t
        (cons offset opc)))))
 
-(defmacro opcode-index (self)
+(defmacro opcode-offset (self)
   `(car ,self))
 
 (defun opcode-symbol (self)
@@ -348,10 +357,10 @@
                  (let ((oprnds (opcode-operands opc)))
                    (if (null oprnds)
                        (format s "     ~3a ~15a~%" 
-                               (format nil "~a:" (opcode-index opc)) 
+                               (format nil "~a:" (opcode-offset opc)) 
                                (opcode-symbol opc))
                        (format s "     ~3a ~15a  #~a~%" 
-                               (format nil "~a:" (opcode-index opc))
+                               (format nil "~a:" (opcode-offset opc))
                                (opcode-symbol opc) 
                                oprnds))))
          self)))

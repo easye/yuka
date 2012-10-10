@@ -1,5 +1,5 @@
 Immediate:
- * Implement rest of opcodes (from lookupswitch).
+ * Test opcodes.
  * Implement support for basic classes.
  * Test all opcode implementations.
 

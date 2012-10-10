@@ -363,7 +363,7 @@
       (is-short obj)
       (is-int obj)
       (is-float obj)
-      (is-refernce obj)
+      (is-reference obj)
       (is-return-address obj)))
 
 (declaim (inline is-category-2))
@@ -402,6 +402,13 @@
 (declaim (inline integer-to-float))
 (defun integer-to-float (self)
   (make-float (coerce self 'float)))
+
+(defun logical-shift-right-i (a b constructor)
+  (funcall constructor (let* ((s (logand b #x1f))
+			      (r (ash a (- s))))
+			 (if (> a 0)
+			     r
+			     (+ r (ash 2 (lognot s)))))))
 
 (defmacro div-i (a b constructor)
   `(if (zerop ,b)
@@ -455,11 +462,7 @@
 
 (declaim (inline integer-logical-shift-right))
 (defun integer-logical-shift-right (a b)
-  (make-integer (let* ((s (logand b #x1f))
-		       (r (ash a (- s))))
-		  (if (> a 0)
-		      r
-		      (+ r (ash 2 (lognot s)))))))
+  (logical-shift-right-i a b #'make-integer))
 
 (declaim (inline integer-xor))
 (defun integer-xor (a b)
@@ -480,6 +483,10 @@
 (declaim (inline long-add))
 (defun long-add (a b)
   (make-long (+ a b)))
+
+(declaim (inline long-sub))
+(defun long-sub (a b)
+  (make-long (- a b)))
 
 (declaim (inline long-and))
 (defun long-and (a b)
@@ -502,3 +509,27 @@
 (declaim (inline long-neg))
 (defun long-neg (a)
   (make-long (- a)))
+
+(declaim (inline long-or))
+(defun long-or (a b)
+  (make-long (logior a b)))
+
+(declaim (inline long-rem))
+(defun long-rem (a b)
+  (rem-i a b #'make-long))
+
+(declaim (inline long-shift-left))
+(defun long-shift-left (a b)
+  (make-long (ash a b)))
+
+(declaim (inline long-shift-right))
+(defun long-shift-right (a b)
+  (make-long (ash a (- b))))
+
+(declaim (inline long-logical-shift-right))
+(defun long-logical-shift-right (a b)
+  (logical-shift-right-i a b #'make-long))
+
+(declaim (inline long-xor))
+(defun long-xor (a b)
+  (make-long (logxor a b)))

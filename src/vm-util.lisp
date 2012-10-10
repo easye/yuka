@@ -17,13 +17,14 @@
 
 (in-package :yuka)
 
-(defun is-refernce (obj)
-  (format t "(is-refernce ~a) not implemented!~%" obj)
+(defun is-reference (obj)
+  (format t "(is-reference ~a) not implemented!~%" obj)
   nil)
 
 (defun is-return-address (obj)
-  (format t "(is-return-address ~a) not implemented!~%" obj)
-  nil)
+  (if (consp obj)
+      (eq 'returnAddress (car obj))
+      nil))
 
 (defun resolve-field (objectref field-name)
   (format t "resolve-field: ~a in ~a not implemented!~%" 
@@ -63,6 +64,10 @@
   (format t "(invoke-virtual ~a ~a) not implemented!~%"
 	  method-spec operand-stack))
 
-(declaim (inline make-ret-address))
-(defun make-ret-address (address)
-  (cons 'retaddress address))
+(declaim (inline make-return-address))
+(defun make-return-address (address)
+  (cons 'returnAddress address))
+
+(defmacro return-address-value (self)
+  `(cdr ,self))
+

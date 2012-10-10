@@ -84,11 +84,23 @@
 	       (setf (array-state-index state) (1+ i))
 	       v)))))
 
-(defmacro make-typed-array (count type-name)
-  `(cons (make-array ,count) ,type-name))
+(defmacro make-typed-array (dimensions type-name)
+  `(cons (make-array ,dimensions) ,type-name))
 
 (defmacro typed-array-elements (self)
   `(car ,self))
 
 (defmacro typed-array-type-name (self)
   `(cdr ,self))
+
+(defun atype-to-symbol (atype)
+  (case atype
+    (4 'boolean)
+    (5 'char)
+    (6 'float)
+    (7 'double)
+    (8 'byte)
+    (9 'short)
+    (10 'integer)
+    (11 'long)
+    (t (error "Invalid type passed to atype-to-symbol: ~a~%" atype))))

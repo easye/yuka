@@ -239,14 +239,13 @@
     (check-not-null objref)
     (stack-push operand-stack (resolve-static-field objref sym))))
 
-(declaim (inline find-pc))
-(defun find-pc (opc-sym byte-code byte-code-len jump-to)
+(defun find-pc (dest-opc-sym byte-code byte-code-len jump-to)
   (let ((pc (loop for i from 0 to (1- byte-code-len)
-               do (let ((opc-index (opcode-index (aref byte-code i))))
-                    (when (= opc-index jump-to)
-                      (return opc-index))))))
+               do (let ((opc-offset (opcode-offset (aref byte-code i))))
+                    (when (= opc-offset jump-to)
+                      (return opc-offset))))))
     (when (null pc)
-      (vm-panic "Invalid jump offset." (cons opc-sym jump-to)))
+      (vm-panic "Invalid jump offset." (cons dest-opc-sym jump-to)))
     pc))
 
 (defmacro goto (byte-code byte-code-len jump-to)
@@ -354,7 +353,7 @@
 	    byte-code-len jump-to
 	    next-opc)
   (let ((pc (find-pc 'jsr byte-code byte-code-len jump-to)))
-    (stack-push operand-stack (make-ret-address (opcode-index next-opc)))
+    (stack-push operand-stack (make-return-address (opcode-offset next-opc)))
     pc))
 
 (defmacro ladd (operand-stack)
@@ -388,3 +387,120 @@
 
 (defmacro lneg (operand-stack)
   `(stack-push ,operand-stack (long-neg (stack-pop ,operand-stack))))
+
+(declaim (inline lookupswitch))
+(defun lookupswitch (key byte-code 
+		     byte-code-len 
+		     current-offset operand)
+  (let ((offset (car operand))
+	(match-offsets (cdr operand)))
+    (loop for i from 0 to (1- (length match-offsets))
+       do (let ((e (aref match-offsets i)))
+	    (when (= key (car e))
+	      (setf offset (cdr e))
+	      (return))))
+    (find-pc 'lookupswitch byte-code byte-code-len 
+	     (+ current-offset offset))))
+
+(defmacro lor (operand-stack)
+  `(arith ,operand-stack #'long-or))
+
+(defmacro lrem (operand-stack)
+  `(arith ,operand-stack #'long-rem))
+
+(defmacro lshl (operand-stack)
+  `(arith ,operand-stack #'long-shift-left))
+
+(defmacro lshr (operand-stack)
+  `(arith ,operand-stack #'long-shift-right))
+
+(defmacro lsub (operand-stack)
+  `(arith ,operand-stack #'long-sub))
+
+(defmacro lushr (operand-stack)
+  `(arith ,operand-stack #'long-logical-shift-right))
+
+(defmacro lxor (operand-stack)
+  `(arith ,operand-stack #'long-xor))
+
+(declaim (inline monitorenter))
+(defun monitorenter (operand-stack)
+  (format t "(monitorenter ~a) not fully implemented!~%" operand-stack)
+  (stack-pop operand-stack))
+
+(declaim (inline monitorexit))
+(defun monitorexit (operand-stack)
+  (format t "(monitorexit ~a) not fully implemented!~%" operand-stack)
+  (stack-pop operand-stack))
+
+(declaim (inline multianewarray))
+(defun multianewarray (operand-stack dimensions-count
+		       constant-pool pool-index)
+  (when (< dimensions-count 0)
+    (throw-exception 'NegativeArraySizeException))
+  (let ((dimensions nil))
+    (loop for i from 0 to (1- dimensions-count)
+       do (setf dimensions (cons (stack-pop operand-stack) 
+				 dimensions)))
+    (stack-push operand-stack (make-typed-array 
+			       (reverse dimensions)
+			       (constant-pool-string-at 
+				constant-pool pool-index)))))
+
+(declaim (inline new))
+(defun new (operand-stack)
+  (format t "(new ~a) not implemented!~%" operand-stack))
+
+(declaim (inline newarray))
+(defun newarray (operand-stack type)
+  (let ((c (stack-pop operand-stack)))
+    (when (< c 0)
+      (throw-exception 'NegativeArraySizeException))
+    (stack-push operand-stack (make-typed-array c (atype-to-symbol type)))))
+
+(declaim (inline pop2))
+(defun pop2 (operand-stack)
+  (let ((v1 (stack-pop operand-stack)))
+    (when (is-category-1 v1)
+      (stack-pop operand-stack))))
+
+(declaim (inline putfield))
+(defun putfield (operand-stack constant-pool pool-index)
+  (let ((value (stack-pop operand-stack))
+	(objref (stack-pop operand-stack))
+	(field-name (constant-pool-string-at constant-pool pool-index)))
+    (format t "~a.~a = ~a~%" objref field-name value)
+    (format t "putfield not fully implemented!~%")))
+
+(declaim (inline putstatic))
+(defun putstatic (operand-stack constant-pool pool-index)
+  (let ((value (stack-pop operand-stack))
+	(field-name (constant-pool-string-at constant-pool pool-index)))
+    (format t "~a = ~a~%" field-name value)
+    (format t "putstatic not fully implemented!~%")))
+
+(defmacro ret (locals index)
+  `(return-address-value (aref ,locals ,index)))
+
+(defmacro saload (operand-stack)
+  `(array-load ,operand-stack))
+
+(defmacro sastore (operand-stack)
+  `(array-store ,operand-stack '(short)))
+
+(declaim (inline tableswitch))
+(defun tableswitch (index ts 
+		    byte-code byte-code-len 
+		    current-offset)
+  (let ((default (table-switch-default ts))
+	(low (table-switch-low ts))
+	(hi (table-switch-hi ts)))
+    (let ((offset (if (or (< default low)
+			  (> default hi))
+		      default
+		      (aref (table-switch-jump-offsets ts)
+			    (- index low)))))
+      (find-pc 'tableswitch byte-code byte-code-len
+	       (+ offset current-offset)))))
+	
+	  
