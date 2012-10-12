@@ -1,4 +1,24 @@
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+
+;;;; This file is part of yuka.
+
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
+
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
+
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (in-package :yuka)
+
+;;; Functions and structures required to deal with
+;;; class/code/field/method attributes.
 
 (defstruct code-attribute
   (max-stack 0 :type integer)
@@ -7,7 +27,14 @@
   (exception-table nil :type simple-array)
   (attributes nil :type simple-array))
 
-(defstruct et-entry
+(defstruct local-variable
+  (start-pc 0 :type integer)
+  (length 0 :type integer)
+  (name-index 0 :type integer)
+  (descriptor-index 0 :type integer)
+  (index 0 :type integer))
+
+(defstruct exception-table-entry
   (from 0 :type integer)
   (to 0 :type integer)
   (target 0 :type integer)
@@ -27,23 +54,24 @@
     (format s "     from    to    target    type~%")
     (map nil #'(lambda (e)
                  (format s "     ~5a    ~5a    ~5a    ~20@a~%"
-                         (et-entry-from e)
-                         (et-entry-to e)
-                         (et-entry-target e)
-                         (constant-pool-string-at constant-pool (et-entry-type e))))
+                         (exception-table-entry-from e)
+                         (exception-table-entry-to e)
+                         (exception-table-entry-target e)
+                         (constant-pool-string-at constant-pool (exception-table-entry-type e))))
          self)))
 
 (defun exception-table-find-handler (self ex-klass-name constant-pool)
   (let ((res nil))
-    (loop for i from 0 to (1- (length self)) 
-       do (let ((et (aref self i)))
-            (when (string= (constant-pool-string-at constant-pool (et-entry-type et))
-                           ex-klass-name)
-              (setf res et)
-              (return))))
+    (dotimes (i (length self))
+      (let ((et (aref self i)))
+        (when (string= (constant-pool-string-at constant-pool (exception-table-entry-type et))
+                       ex-klass-name)
+          (setf res et)
+          (return))))
     res))
 
-(defun code-attribute-to-string (self constant-pool)
+(defun code-attribute-to-string (self constant-pool 
+                                 to-string-fns)
   (with-output-to-string (s)
     (format s "  Code:~%    stack= ~a, locals= ~a~%"
 	    (code-attribute-max-stack self) (code-attribute-max-locals self))
@@ -53,32 +81,27 @@
               (exception-table-to-string 
                (code-attribute-exception-table self) constant-pool)))
     (format s "~%    LineNumberTable:~%")
-    (format s "~a~%" (attribute-infos-to-string (code-attribute-attributes self) 
-						  constant-pool))))
+    (format s "~a~%" (funcall (car to-string-fns)
+                              (code-attribute-attributes self) 
+                              constant-pool
+                              (cdr to-string-fns)))))
 
-(declaim (inline read-et-entry))
-(defun read-et-entry (stream)
-  (make-et-entry :from (read-u2 stream)
-                 :to (read-u2 stream)
-                 :target (read-u2 stream)
-                 :type (read-u2 stream)))
+(declaim (inline read-exception-table-entry))
+(defun read-exception-table-entry (stream)
+  (make-exception-table-entry :from (read-u2 stream)
+                              :to (read-u2 stream)
+                              :target (read-u2 stream)
+                              :type (read-u2 stream)))
 
 (declaim (inline read-exception-table))
 (defun read-exception-table (stream count)
-  (read-array stream count #'read-et-entry))
+  (read-array stream count #'read-exception-table-entry))
 
 (defun read-line-number-table (stream count)
   (let ((tbl (make-array count)))
-    (loop for i from 0 to (1- count)
-       do (setf (aref tbl i) (cons (read-u2 stream) (read-u2 stream))))
+    (dotimes (i count)
+      (setf (aref tbl i) (cons (read-u2 stream) (read-u2 stream))))
     tbl))
-
-(defstruct local-variable
-  (start-pc 0 :type integer)
-  (length 0 :type integer)
-  (name-index 0 :type integer)
-  (descriptor-index 0 :type integer)
-  (index 0 :type integer))
 
 (declaim (inline read-local-variable-table-enrty))
 (defun read-local-variable-table-enrty (stream)
@@ -174,12 +197,14 @@
   (read-array stream count #'(lambda (stream)
 			       (read-stack-map-frame stream (read-byte stream)))))
 
-(defun read-attribute-info (stream constant-pool)
-  (let* ((name-index (read-u2 stream))
+(defun read-attribute-info (stream user-data)
+  (let* ((constant-pool (car user-data))
+         (read-code-attr-fn (cdr user-data))
+         (name-index (read-u2 stream))
 	 (attr-len (read-u4 stream))
 	 (attr-name (constant-pool-string-at constant-pool name-index)))
     (cond ((string= attr-name "Code")
-	   (cons 'code (read-code-attribute stream constant-pool)))
+	   (cons 'code (funcall read-code-attr-fn stream constant-pool)))
 	  ((string= attr-name "LineNumberTable")
 	   (cons 'line-number-table (read-line-number-table stream (read-u2 stream))))
 	  ((string= attr-name "LocalVariableTable")
@@ -188,25 +213,27 @@
 	   (cons 'local-variable-type-table (read-local-variable-table stream (read-u2 stream))))
 	  ((string= attr-name "StackMapTable")
 	   (cons 'stack-map-table (read-stack-map-table stream (read-u2 stream))))
-	  (t
-	   (cons name-index (read-info stream attr-len))))))
+	  (t (cons name-index (read-info stream attr-len))))))
 
 (declaim (inline read-attribute-infos))
-(defun read-attribute-infos (stream count constant-pool)
-  (read-array-with-user-data stream count constant-pool #'read-attribute-info))
+(defun read-attribute-infos (stream count constant-pool read-code-attr-fn)
+  (read-array-with-user-data stream count 
+                             (cons constant-pool read-code-attr-fn)
+                             #'read-attribute-info))
 
 (defun read-code-attribute (stream constant-pool)
   (make-code-attribute :max-stack (read-u2 stream)
 		       :max-locals (read-u2 stream)
 		       :code (bytes-to-opcode (read-code stream (read-u4 stream)))
 		       :exception-table (read-exception-table stream (read-u2 stream))
-		       :attributes (read-attribute-infos stream (read-u2 stream) constant-pool)))
+		       :attributes (read-attribute-infos stream (read-u2 stream) 
+                                                         constant-pool #'read-code-attribute)))
 
 (defun line-number-table-to-string (self)
   (with-output-to-string (s)
-    (loop for i from 0 to (1- (length self))
-       do (let ((a (aref self i)))
-	    (format s "      line ~a: ~a~%" (cdr a) (car a))))))
+    (dotimes (i (length self))
+      (let ((a (aref self i)))
+        (format s "      line ~a: ~a~%" (cdr a) (car a))))))
 
 (defun verification-type-info-to-string (self constant-pool)
   (with-output-to-string (s)
@@ -223,9 +250,9 @@
 (defun verification-type-infos-to-string (self constant-pool)
   (format t "~a~%" self)
   (with-output-to-string (s)
-    (loop for i from 0 to (1- (length self))
-       do (format s "~a" (verification-type-info-to-string (aref self i)
-							   constant-pool)))))
+    (dotimes (i (length self))
+      (format s "~a" (verification-type-info-to-string (aref self i)
+                                                       constant-pool)))))
 
 (defun stack-map-frame-to-string (self constant-pool)
   (with-output-to-string (s)
@@ -261,9 +288,9 @@
 (defun stack-map-table-to-string (self constant-pool)
   (with-output-to-string (s)
     (format s "     StackMapTable: number_of_entries = ~a~%" (length self))
-    (loop for i from 0 to (1- (length self))
-	 do (let ((frame (aref self i)))
-	      (format s "    ~a~%" (stack-map-frame-to-string frame constant-pool))))))
+    (dotimes (i (length self))
+      (let ((frame (aref self i)))
+        (format s "    ~a~%" (stack-map-frame-to-string frame constant-pool))))))
 
 (defmacro attribute-info-tag (self)
   `(car ,self))
@@ -276,20 +303,23 @@
 
 (defun attribute-info-length (self)
   (length (attribute-info-info self)))
-  
+
+(defun attribute-infos-to-string (self constant-pool ainfo-to-string-fn)
+  (with-output-to-string (s)
+    (map 'nil #'(lambda (ainfo)
+		  (format s "~%~a" 
+                          (funcall ainfo-to-string-fn ainfo constant-pool)))
+	 self)))
+
 (defun attribute-info-to-string (self constant-pool)
   (let ((info (attribute-info-info self)))
     (case (attribute-info-tag self)
       ((code)
-       (code-attribute-to-string info constant-pool))
+       (code-attribute-to-string info constant-pool 
+                                 (cons #'attribute-infos-to-string
+                                       #'attribute-info-to-string)))
       ((line-number-table)
        (line-number-table-to-string info))
       ((stack-map-table)
        (stack-map-table-to-string info constant-pool))
       (t info))))
-
-(defun attribute-infos-to-string (self constant-pool)
-  (with-output-to-string (s)
-    (map 'nil #'(lambda (ainfo)
-		  (format s "~%~a" (attribute-info-to-string ainfo constant-pool)))
-	 self)))

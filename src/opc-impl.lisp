@@ -1,21 +1,24 @@
-;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
 
-;; This file is part of yuka.
+;;;; This file is part of yuka.
 
-;; yuka is free software; you can redistribute it and/or modify it under
-;; the terms of the GNU Lesser General Public License as published by
-;; the Free Software Foundation; either version 3 of the License, or
-;; (at your option) any later version.
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
 
-;; yuka is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU Lesser General Public License for more details.
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU Lesser General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (in-package :yuka)
+
+;;; Implementation of opcode actions to be executed by the
+;;; bytecode interpreter. (See frame.lisp)
 
 (defmacro throw-exception (exception)
   `(error "~a" ,exception))
@@ -103,7 +106,7 @@
              (stack-reset operand-stack)
              (stack-push operand-stack ref)
              -1)
-            (t (et-entry-target h))))))
+            (t (exception-table-entry-target h))))))
 
 (defun array-load (operand-stack)
   (let ((array (stack-pop operand-stack))
@@ -240,10 +243,10 @@
     (stack-push operand-stack (resolve-static-field objref sym))))
 
 (defun find-pc (dest-opc-sym byte-code byte-code-len jump-to)
-  (let ((pc (loop for i from 0 to (1- byte-code-len)
-               do (let ((opc-offset (opcode-offset (aref byte-code i))))
-                    (when (= opc-offset jump-to)
-                      (return opc-offset))))))
+  (let ((pc (dotimes (i byte-code-len)
+              (let ((opc-offset (opcode-offset (aref byte-code i))))
+                (when (= opc-offset jump-to)
+                  (return opc-offset))))))
     (when (null pc)
       (vm-panic "Invalid jump offset." (cons dest-opc-sym jump-to)))
     pc))
@@ -394,11 +397,11 @@
 		     current-offset operand)
   (let ((offset (car operand))
 	(match-offsets (cdr operand)))
-    (loop for i from 0 to (1- (length match-offsets))
-       do (let ((e (aref match-offsets i)))
-	    (when (= key (car e))
-	      (setf offset (cdr e))
-	      (return))))
+    (dotimes (i (length match-offsets))
+      (let ((e (aref match-offsets i)))
+        (when (= key (car e))
+          (setf offset (cdr e))
+          (return))))
     (find-pc 'lookupswitch byte-code byte-code-len 
 	     (+ current-offset offset))))
 
@@ -439,9 +442,9 @@
   (when (< dimensions-count 0)
     (throw-exception 'NegativeArraySizeException))
   (let ((dimensions nil))
-    (loop for i from 0 to (1- dimensions-count)
-       do (setf dimensions (cons (stack-pop operand-stack) 
-				 dimensions)))
+    (dotimes (i dimensions-count)
+      (setf dimensions (cons (stack-pop operand-stack) 
+                             dimensions)))
     (stack-push operand-stack (make-typed-array 
 			       (reverse dimensions)
 			       (constant-pool-string-at 
@@ -502,5 +505,3 @@
 			    (- index low)))))
       (find-pc 'tableswitch byte-code byte-code-len
 	       (+ offset current-offset)))))
-	
-	  

@@ -1,21 +1,23 @@
-;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
 
-;; This file is part of yuka.
+;;;; This file is part of yuka.
 
-;; yuka is free software; you can redistribute it and/or modify it under
-;; the terms of the GNU Lesser General Public License as published by
-;; the Free Software Foundation; either version 3 of the License, or
-;; (at your option) any later version.
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
 
-;; yuka is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU Lesser General Public License for more details.
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU Lesser General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (in-package :yuka)
+
+;;; Helper definitions used by the class-loader and the virtual machine runtime.
 
 (defconstant +magic+ #xCAFEBABE)
 (defconstant +max-code-len+ 65536)
@@ -40,14 +42,14 @@
 
 (defun read-array (stream count reader-fn)
   (let ((data (make-array count)))
-    (loop for i from 0 to (1- count)
-       do (setf (aref data i) (funcall reader-fn stream)))
+    (dotimes (i count)
+      (setf (aref data i) (funcall reader-fn stream)))
     data))
 
 (defun read-array-with-user-data (stream count user-data reader-fn)
   (let ((data (make-array count)))
-    (loop for i from 0 to (1- count)
-       do (setf (aref data i) (funcall reader-fn stream user-data)))
+    (dotimes (i count)
+      (setf (aref data i) (funcall reader-fn stream user-data)))
     data))
 
 (declaim (inline neq))

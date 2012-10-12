@@ -1,28 +1,28 @@
-;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
 
-;; This file is part of yuka.
+;;;; This file is part of yuka.
 
-;; yuka is free software; you can redistribute it and/or modify it under
-;; the terms of the GNU Lesser General Public License as published by
-;; the Free Software Foundation; either version 3 of the License, or
-;; (at your option) any later version.
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
 
-;; yuka is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU Lesser General Public License for more details.
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU Lesser General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (in-package :yuka)
 
-;; Loads a binary file in the JVM class file format.
+;;; The system class loader - loads a binary file in the JVM class file format.
 
 (defun read-interfaces (stream count)
   (let ((interfaces (make-array count)))
-    (loop for i from 0 to (1- count)
-       do (setf (aref interfaces i) (read-u2 stream)))
+    (dotimes (i count)
+      (setf (aref interfaces i) (read-u2 stream)))
     interfaces))
 
 (defun klass-from-stream (stream)
@@ -39,7 +39,8 @@
 			    :interfaces (read-interfaces stream (read-u2 stream))
 			    :fields (read-field/method-infos stream (read-u2 stream) cp)
 			    :methods (read-field/method-infos stream (read-u2 stream) cp)
-			    :attributes (read-attribute-infos stream (read-u2 stream) cp))))
+			    :attributes (read-attribute-infos stream (read-u2 stream) 
+                                                              cp #'read-code-attribute))))
       (setf (klass-constant-pool-count self) (length (klass-constant-pool self)))
       (setf (klass-interfaces-count self) (length (klass-interfaces self)))
       (setf (klass-fields-count self) (length (klass-fields self)))

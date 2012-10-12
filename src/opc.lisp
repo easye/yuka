@@ -1,21 +1,23 @@
-;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
 
-;; This file is part of yuka.
+;;;; This file is part of yuka.
 
-;; yuka is free software; you can redistribute it and/or modify it under
-;; the terms of the GNU Lesser General Public License as published by
-;; the Free Software Foundation; either version 3 of the License, or
-;; (at your option) any later version.
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
 
-;; yuka is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU Lesser General Public License for more details.
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU Lesser General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (in-package :yuka)
+
+;;; Representation of opcodes.
 
 (defparameter *opcode-symbols* (make-array 255))
 
@@ -247,9 +249,8 @@
 (defun skip-padding (offset)
   ;; Skip padding to an address that is a multiple of 4.
   ;; Padding must be between 0 and 3.
-  (loop 
-     (when (= 0 (mod offset 4)) 
-       (return)) 
+  (loop (when (= 0 (mod offset 4)) 
+          (return)) 
      (setf offset (1+ offset)))
   offset)
 
@@ -257,10 +258,10 @@
   (let ((default-byte (wide-index-from-bytes code offset))
 	(match-pairs (make-array (wide-index-from-bytes code (+ 4 offset)))))
     (setf offset (+ 8 offset))
-    (loop for i from 0 to (1- (length match-pairs))
-       do (setf (aref match-pairs i) (cons (wide-index-from-bytes code offset)
-					   (wide-index-from-bytes code (+ 4 offset))))
-	 (setf offset (+ 8 offset)))
+    (dotimes (i (length match-pairs))
+      (setf (aref match-pairs i) (cons (wide-index-from-bytes code offset)
+                                       (wide-index-from-bytes code (+ 4 offset))))
+      (setf offset (+ 8 offset)))
     (cons offset (cons default-byte match-pairs))))
 
 (defstruct table-switch
@@ -276,9 +277,9 @@
 	 (count (1+ (- hi low)))
 	 (jump-indices (make-array count)))
     (setf offset (+ 12 offset))
-    (loop for i from 0 to (1- count)
-       do (setf (aref jump-indices i) (aref code offset))
-	 (setf offset (1+ offset)))
+    (dotimes (i count)
+      (setf (aref jump-indices i) (aref code offset))
+      (setf offset (1+ offset)))
     (cons offset (make-table-switch :default default
 				    :low low
 				    :hi hi
@@ -290,8 +291,7 @@
       ((iinc)
        (cons (+ 5 offset) (cons (index-from-bytes code (1+ offset))
 				(index-from-bytes code (+ 3 offset)))))
-      (t 
-       (cons (+ 3 offset) (index-from-bytes code (1+ offset)))))))
+      (t (cons (+ 3 offset) (index-from-bytes code (1+ offset)))))))
 
 (defun next-opcode (code offset)
   (let ((opc (aref *opcode-symbols* (aref code offset))))
@@ -325,8 +325,7 @@
        (get-tableswitch code (skip-padding offset)))
       ((wide)
        (get-wide code offset))
-      (t
-       (cons offset opc)))))
+      (t (cons offset opc)))))
 
 (defmacro opcode-offset (self)
   `(car ,self))

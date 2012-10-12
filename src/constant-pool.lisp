@@ -1,21 +1,23 @@
-;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
+;;;; Copyright (c) 2012 Vijay Mathew Pandyalakal <vijay.the.lisper@gmail.com>
 
-;; This file is part of yuka.
+;;;; This file is part of yuka.
 
-;; yuka is free software; you can redistribute it and/or modify it under
-;; the terms of the GNU Lesser General Public License as published by
-;; the Free Software Foundation; either version 3 of the License, or
-;; (at your option) any later version.
+;;;; yuka is free software; you can redistribute it and/or modify it under
+;;;; the terms of the GNU General Public License as published by
+;;;; the Free Software Foundation; either version 3 of the License, or
+;;;; (at your option) any later version.
 
-;; yuka is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU Lesser General Public License for more details.
+;;;; yuka is distributed in the hope that it will be useful,
+;;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;;; GNU General Public License for more details.
 
-;; You should have received a copy of the GNU Lesser General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;;;; You should have received a copy of the GNU General Public License
+;;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (in-package :yuka)
+
+;;; Representation of the constant pool.
 
 (defconstant +nan+ 'nan)
 (defconstant +positive-infinity+ 'infinity)
@@ -154,8 +156,8 @@
 
 (defun read-utf8-str (stream len)
   (let ((utf8-str (make-array len :element-type '(unsigned-byte 8))))
-    (loop for i from 0 to (1- len) 
-       do (setf (aref utf8-str i) (read-byte stream)))
+    (dotimes (i len) 
+      (setf (aref utf8-str i) (read-byte stream)))
     (trivial-utf-8:utf-8-bytes-to-string utf8-str)))
 
 (defun read-utf8-info (stream tag)
@@ -203,7 +205,7 @@
 
 (defmacro invoke-dynamic-info-name-and-type-index (self)
   `(cddr ,self))
-	       
+
 (defun klass-info-to-string (self)
   (with-output-to-string (s)
     (format s "~20a#~a" "Class" (klass-info-name-index self))))
@@ -237,7 +239,7 @@
 (defun long-info-to-string (self)
   (with-output-to-string (s)
     (format s "~20a~a" "Long" (long-info-value (long-info-high-bytes self)
-						(long-info-low-bytes self)))))
+                                               (long-info-low-bytes self)))))
 
 (defun double-info-to-string (self)
   (with-output-to-string (s)
@@ -308,12 +310,12 @@
 (defun read-constant-pool (stream count)
   (if (> count 0)
       (let ((cp (make-array count)))
-        (loop for i from 0 to (1- count)
-	   do (let ((tag (read-byte stream)))
-		(setf (aref cp i) (read-cp-info stream tag))
-		(when (or (eq tag +long-info+)
-			  (eq tag +double-info+))
-		  (setf i (1+ i)))))
+        (dotimes (i count)
+          (let ((tag (read-byte stream)))
+            (setf (aref cp i) (read-cp-info stream tag))
+            (when (or (eq tag +long-info+)
+                      (eq tag +double-info+))
+              (setf i (1+ i)))))
         cp)
       (make-array 0)))
 
@@ -322,11 +324,11 @@
 
 (defun constant-pool-to-string (self)
   (with-output-to-string (s)
-    (loop for i from 0 to (1- (length self))	 
-       do (let ((cp-info (aref self i)))
-	    (when (consp cp-info)
-	      (format s "    #~2a = ~a~%" (1+ i) 
-		      (cp-info-to-string cp-info)))))))
+    (dotimes (i (length self))	 
+      (let ((cp-info (aref self i)))
+        (when (consp cp-info)
+          (format s "    #~2a = ~a~%" (1+ i) 
+                  (cp-info-to-string cp-info)))))))
 
 (defun constant-pool-string-at (self index)
   (let* ((cp-info (aref self (1- index)))
